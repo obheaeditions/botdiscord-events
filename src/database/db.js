@@ -56,4 +56,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_registrations_event_id ON registrations(event_id);
 `);
 
+// Add previous_status column if it does not exist (migration support)
+try {
+  db.exec('ALTER TABLE registrations ADD COLUMN previous_status TEXT');
+} catch (err) {
+  // Column already exists, ignore error
+}
+
 export default db;

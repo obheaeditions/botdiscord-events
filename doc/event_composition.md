@@ -15,13 +15,14 @@ L'administrateur peut modifier directement la composition de l'événement depui
   - Le serveur enregistre la ligne en base de données avec le statut `inscrit`.
   - Le serveur met automatiquement à jour l'embed Discord associé à l'événement pour synchroniser les compteurs en temps réel.
 
-### Mise en Attente (Waitlist)
+### Mise en Attente et Réintégration (Waitlist)
 
 - À côté de chaque participant ayant le statut `inscrit` ou `interesse`, un bouton **Mettre en attente** est affiché.
+- Si le participant est déjà en attente, le bouton se transforme en **Réintégrer**.
 - Au clic (`POST /events/:id/registrations/:userId/waitlist`) :
-  - Le serveur passe le statut de l'utilisateur à `en_attente`.
-  - Le compteur "En attente" sur le tableau de bord et dans l'embed Discord est incrémenté.
-  - L'embed est synchronisé de manière asynchrone sur Discord.
+  - **Mise en attente :** Si le participant est actif, son statut passe à `en_attente` et son choix initial (`inscrit`/`interesse`) est sauvegardé dans la colonne `previous_status` en base de données. Un message privé (DM) lui est envoyé par le bot Discord pour l'en informer.
+  - **Réintégration :** Si le participant est déjà en attente, son statut initial sauvegardé dans `previous_status` est restauré, et `previous_status` est remis à `NULL`. Un message privé (DM) lui est envoyé par le bot pour lui indiquer son nouveau statut actif.
+  - L'embed de l'événement est synchronisé de manière asynchrone sur Discord.
 
 ---
 

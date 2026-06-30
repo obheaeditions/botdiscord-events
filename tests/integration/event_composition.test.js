@@ -57,19 +57,32 @@ describe('Event Composition & Waitlist Integration Tests', () => {
     expect(reg.status).toBe('inscrit');
   });
 
-  test('should move an existing participant to waitlist via POST /events/:id/registrations/:userId/waitlist', async () => {
+  test('should move an existing participant to waitlist via POST /events/:id/registrations/:userId/waitlist and toggle back', async () => {
     // Insert initial registered participant
     db.prepare('INSERT INTO registrations (event_id, user_id, username, status) VALUES (?, ?, ?, ?)')
-      .run(createdEventId, '12345', 'JohnDoe', 'inscrit');
+      .run(createdEventId, '12345', 'JohnDoe', 'interesse');
 
-    const response = await request(app)
+    // 1. Move to waitlist
+    let response = await request(app)
       .post(`/events/${createdEventId}/registrations/12345/waitlist`)
       .auth(adminUser, adminPassword);
 
     expect(response.status).toBe(302);
 
-    const reg = db.prepare('SELECT * FROM registrations WHERE event_id = ? AND user_id = ?').get(createdEventId, '12345');
+    let reg = db.prepare('SELECT * FROM registrations WHERE event_id = ? AND user_id = ?').get(createdEventId, '12345');
     expect(reg.status).toBe('en_attente');
+    expect(reg.previous_status).toBe('interesse');
+
+    // 2. Toggle back to original status
+    response = await request(app)
+      .post(`/events/${createdEventId}/registrations/12345/waitlist`)
+      .auth(adminUser, adminPassword);
+
+    expect(response.status).toBe(302);
+
+    reg = db.prepare('SELECT * FROM registrations WHERE event_id = ? AND user_id = ?').get(createdEventId, '12345');
+    expect(reg.status).toBe('interesse');
+    expect(reg.previous_status).toBeNull();
   });
 
   test('should trigger composition publishing via POST /events/:id/publish-composition', async () => {

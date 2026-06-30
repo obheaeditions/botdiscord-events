@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import db from '../database/db.js';
-import { validateRolePermissionsForChannels, getGuildChannelsAndRoles } from '../bot/index.js';
+import client, { validateRolePermissionsForChannels, getGuildChannelsAndRoles } from '../bot/index.js';
 import { publishEventToDiscord, deleteEventFromDiscord, publishCompositionToThreads } from '../bot/publisher.js';
 import { sessions, SESSION_COOKIE_NAME } from './sessionStore.js';
 
@@ -373,21 +373,60 @@ router.post('/events/:id/registrations/add', async (req, res) => {
   }
 });
 
-// POST waitlist registration
+// POST waitlist registration (Toggle)
 router.post('/events/:id/registrations/:userId/waitlist', async (req, res) => {
   try {
     const eventId = req.params.id;
     const userId = req.params.userId;
 
-    // Set status to en_attente
-    db.prepare('UPDATE registrations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE event_id = ? AND user_id = ?')
-      .run('en_attente', eventId, userId);
+    const event = db.prepare('SELECT title FROM events WHERE id = ?').get(eventId);
+    if (!event) {
+      return res.status(404).send("Événement non trouvé.");
+    }
+
+    const reg = db.prepare('SELECT * FROM registrations WHERE event_id = ? AND user_id = ?').get(eventId, userId);
+    if (!reg) {
+      return res.status(404).send("Inscription non trouvée.");
+    }
+
+    let newStatus;
+    let newPreviousStatus;
+    let dmText = '';
+
+    if (reg.status === 'en_attente') {
+      // Toggle back to initial status
+      newStatus = reg.previous_status || 'inscrit';
+      newPreviousStatus = null;
+
+      const statusLabel = newStatus === 'inscrit' ? 'Inscrit' : 'Intéressé';
+      dmText = `Bonjour ! Vous avez été retiré(e) de la liste d'attente pour l'événement **${event.title}**. Votre statut est de nouveau : **${statusLabel}**.`;
+    } else {
+      // Put on waitlist
+      newStatus = 'en_attente';
+      newPreviousStatus = reg.status; // Save initial status ('inscrit' or 'interesse')
+      dmText = `Bonjour ! Vous avez été mis(e) en liste d'attente pour l'événement **${event.title}**.`;
+    }
+
+    db.prepare('UPDATE registrations SET status = ?, previous_status = ?, updated_at = CURRENT_TIMESTAMP WHERE event_id = ? AND user_id = ?')
+      .run(newStatus, newPreviousStatus, eventId, userId);
 
     // Sync embeds on Discord
     try {
       await publishEventToDiscord(eventId);
     } catch (botErr) {
       console.error(`Erreur de synchronisation Discord lors de la mise en attente:`, botErr);
+    }
+
+    // Send private message (DM) to the user on Discord
+    if (client.readyAt && dmText) {
+      try {
+        const discordUser = await client.users.fetch(userId);
+        if (discordUser) {
+          await discordUser.send(dmText);
+        }
+      } catch (dmErr) {
+        console.warn(`Impossible d'envoyer un message privé à l'utilisateur ${userId}:`, dmErr.message);
+      }
     }
 
     res.redirect(`/events/${eventId}`);

@@ -313,6 +313,12 @@
                               🟠 Mettre en attente
                             </button>
                           </form>
+                        <% } else if (reg.status === 'en_attente') { %>
+                          <form action="/events/<%= event.id %>/registrations/<%= reg.user_id %>/waitlist" method="POST" class="inline">
+                            <button type="submit" class="px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 hover:bg-emerald-600 hover:text-white transition duration-200 text-[11px] font-semibold shadow-sm">
+                              🟢 Réintégrer
+                            </button>
+                          </form>
                         <% } else { %>
                           <span class="text-slate-600 italic">-</span>
                         <% } %>
