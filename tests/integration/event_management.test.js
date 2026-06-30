@@ -100,4 +100,17 @@ describe('Event Management Integration Tests (Delete, Block, Republish)', () => 
     const regs = db.prepare('SELECT * FROM registrations WHERE event_id = ?').all(createdEventId);
     expect(regs.length).toBe(0);
   });
+
+  test('should edit descriptions on POST /events/:id/edit-descriptions', async () => {
+    const response = await request(app)
+      .post(`/events/${createdEventId}/edit-descriptions`)
+      .send({ desc_short: 'New short desc', desc_org: 'New org logistics' })
+      .auth(adminUser, adminPassword);
+
+    expect(response.status).toBe(302);
+
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(createdEventId);
+    expect(event.desc_short).toBe('New short desc');
+    expect(event.desc_org).toBe('New org logistics');
+  });
 });

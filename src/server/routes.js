@@ -343,6 +343,33 @@ router.post('/events/:id/delete', async (req, res) => {
   }
 });
 
+// POST edit event descriptions
+router.post('/events/:id/edit-descriptions', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const { desc_short, desc_org } = req.body;
+
+    if (desc_short === undefined || desc_org === undefined) {
+      return res.status(400).send("Descriptions requises.");
+    }
+
+    db.prepare('UPDATE events SET desc_short = ?, desc_org = ? WHERE id = ?')
+      .run(desc_short.trim(), desc_org.trim(), eventId);
+
+    // Sync updated descriptions to Discord embeds
+    try {
+      await publishEventToDiscord(eventId);
+    } catch (botErr) {
+      console.error(`Erreur de synchronisation Discord lors de la modification des descriptions:`, botErr);
+    }
+
+    res.redirect(`/events/${eventId}`);
+  } catch (err) {
+    console.error('Error editing event descriptions:', err);
+    res.status(500).send("Une erreur est survenue lors de la modification de l'événement.");
+  }
+});
+
 // POST add registration manually
 router.post('/events/:id/registrations/add', async (req, res) => {
   try {
