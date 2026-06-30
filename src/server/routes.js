@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import db from '../database/db.js';
 import { validateRolePermissionsForChannels, getGuildChannelsAndRoles } from '../bot/index.js';
+import { publishEventToDiscord, deleteEventFromDiscord } from '../bot/publisher.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -230,6 +231,69 @@ router.get('/events/:id', (req, res) => {
   } catch (err) {
     console.error('Error fetching event details:', err);
     res.status(500).send('Une erreur est survenue lors de la récupération des détails de l’événement.');
+  }
+});
+
+// POST toggle event block (close/open registrations)
+router.post('/events/:id/toggle-block', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const event = db.prepare('SELECT is_blocked FROM events WHERE id = ?').get(eventId);
+    if (!event) {
+      return res.status(404).send('Événement non trouvé.');
+    }
+
+    const newBlockedState = event.is_blocked === 1 ? 0 : 1;
+    db.prepare('UPDATE events SET is_blocked = ? WHERE id = ?').run(newBlockedState, eventId);
+
+    // Sync state to Discord embeds
+    try {
+      await publishEventToDiscord(eventId);
+    } catch (botErr) {
+      console.error(`Erreur lors de la synchronisation de l'état bloqué sur Discord:`, botErr);
+    }
+
+    res.redirect(`/events/${eventId}`);
+  } catch (err) {
+    console.error('Error toggling block state:', err);
+    res.status(500).send('Une erreur est survenue lors de la modification de l’état d’inscription.');
+  }
+});
+
+// POST republish / sync event on Discord
+router.post('/events/:id/republish', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    
+    // Trigger resilient publish
+    await publishEventToDiscord(eventId);
+
+    res.redirect(`/events/${eventId}`);
+  } catch (err) {
+    console.error('Error republishing event:', err);
+    res.status(500).send('Une erreur est survenue lors de la republication de l’événement.');
+  }
+});
+
+// POST delete event
+router.post('/events/:id/delete', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+
+    // 1. Delete associated messages on Discord (async, fail-safe)
+    try {
+      await deleteEventFromDiscord(eventId);
+    } catch (botErr) {
+      console.error(`Erreur lors de la suppression des messages de l'événement ${eventId} sur Discord:`, botErr);
+    }
+
+    // 2. Delete event from SQLite (cascade deletes registrations)
+    db.prepare('DELETE FROM events WHERE id = ?').run(eventId);
+
+    res.redirect('/');
+  } catch (err) {
+    console.error('Error deleting event:', err);
+    res.status(500).send('Une erreur est survenue lors de la suppression de l’événement.');
   }
 });
 

@@ -77,7 +77,12 @@
           <div class="rounded-3xl border border-slate-800 bg-slate-900/30 p-6 flex flex-col justify-between hover:border-discord/40 transition duration-300 group">
             <div>
               <div class="flex items-center justify-between mb-4">
-                <span class="px-3 py-1 rounded-full text-xs font-semibold bg-discord/10 text-discord border border-discord/20"><%= event.type %></span>
+                <div class="flex items-center space-x-2">
+                  <span class="px-3 py-1 rounded-full text-xs font-semibold bg-discord/10 text-discord border border-discord/20"><%= event.type %></span>
+                  <% if (event.is_blocked === 1) { %>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">Fermé</span>
+                  <% } %>
+                </div>
                 <span class="text-xs text-slate-500">
                   <% if (event.end_date && event.end_date !== event.start_date) { %>
                     <%= 'Du ' + event.start_date + ' à ' + event.start_time + ' au ' + event.end_date + (event.end_time ? ' à ' + event.end_time : '') %>
@@ -90,13 +95,18 @@
               <p class="text-slate-400 text-sm mb-4 line-clamp-2"><%= event.desc_short %></p>
             </div>
             <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <a href="/events/<%= event.id %>" class="inline-flex items-center text-sm font-semibold text-discord hover:text-white transition duration-200">
+                  Superviser
+                  <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-0.5 transition duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                  </svg>
+                </a>
+                <form action="/events/<%= event.id %>/delete" method="POST" onsubmit="return confirm('Voulez-vous vraiment supprimer cet événement et retirer tous ses messages Discord ?');" class="inline">
+                  <button type="submit" class="text-xs text-rose-500 hover:text-rose-450 font-medium transition duration-200">Supprimer</button>
+                </form>
+              </div>
               <span class="text-xs text-slate-500">Durée: <%= event.duration %></span>
-              <a href="/events/<%= event.id %>" class="inline-flex items-center text-sm font-semibold text-discord hover:text-white transition duration-200">
-                Superviser
-                <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-0.5 transition duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-              </a>
             </div>
           </div>
         <% }); %>

@@ -133,6 +133,14 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: '❌ Événement introuvable.', ephemeral: true });
     }
 
+    // Check if event is blocked (registrations closed)
+    if (event.is_blocked === 1) {
+      return interaction.reply({
+        content: "❌ Les inscriptions pour cet événement sont fermées.",
+        ephemeral: true
+      });
+    }
+
     // Role access validation
     const allowedRoles = JSON.parse(event.roles);
     if (allowedRoles.length > 0) {

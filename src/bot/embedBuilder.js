@@ -11,7 +11,9 @@ const TYPE_COLORS = {
 };
 
 export function buildEmbed(event, counts = {}) {
-  const color = TYPE_COLORS[event.type] || '#F1C40F'; // Default Yellow
+  const isBlocked = event.is_blocked === 1;
+  const color = isBlocked ? '#7F8C8D' : (TYPE_COLORS[event.type] || '#F1C40F');
+  const title = isBlocked ? `🔒 [INSCRIPTIONS FERMÉES] ${event.title}` : event.title;
   const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`;
 
   let dateValue = '';
@@ -30,7 +32,7 @@ export function buildEmbed(event, counts = {}) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle(event.title)
+    .setTitle(title)
     .setDescription(event.desc_short)
     .setColor(color)
     .addFields(

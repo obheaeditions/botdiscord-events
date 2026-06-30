@@ -38,6 +38,7 @@ db.exec(`
     links TEXT NOT NULL,          -- JSON array of link URLs
     is_pinned INTEGER DEFAULT 0,  -- 0 or 1
     is_pinged INTEGER DEFAULT 0,  -- 0 or 1
+    is_blocked INTEGER DEFAULT 0, -- 0 or 1 (1 = registrations closed)
     discord_messages TEXT NOT NULL -- JSON object mapping channel_id -> message_id
   );
 

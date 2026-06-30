@@ -56,6 +56,9 @@
       <div>
         <div class="flex items-center space-x-3 mb-2">
           <span class="px-3 py-1 rounded-full text-xs font-semibold bg-discord/10 text-discord border border-discord/20"><%= event.type %></span>
+          <% if (event.is_blocked === 1) { %>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20">🔒 Inscriptions Bloquées</span>
+          <% } %>
           <span class="text-sm text-slate-500">
             <% if (event.end_date && event.end_date !== event.start_date) { %>
               <%= 'Du ' + event.start_date + ' à ' + event.start_time + ' au ' + event.end_date + (event.end_time ? ' à ' + event.end_time : '') %>
@@ -65,6 +68,36 @@
           </span>
         </div>
         <h1 class="text-3xl font-extrabold tracking-tight text-white"><%= event.title %></h1>
+      </div>
+      
+      <!-- Actions d'Administration -->
+      <div class="flex flex-wrap gap-3 items-center">
+        <!-- Bloquer/Débloquer -->
+        <form action="/events/<%= event.id %>/toggle-block" method="POST" class="inline">
+          <% if (event.is_blocked === 1) { %>
+            <button type="submit" class="inline-flex items-center px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition duration-200 text-sm">
+              🔓 Débloquer Inscriptions
+            </button>
+          <% } else { %>
+            <button type="submit" class="inline-flex items-center px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-medium transition duration-200 text-sm shadow-lg shadow-amber-600/20">
+              🔒 Bloquer Inscriptions
+            </button>
+          <% } %>
+        </form>
+
+        <!-- Republier / Synchroniser -->
+        <form action="/events/<%= event.id %>/republish" method="POST" class="inline">
+          <button type="submit" class="inline-flex items-center px-4 py-2 rounded-xl bg-discord hover:bg-discord/90 text-white font-medium transition duration-200 text-sm shadow-lg shadow-discord/20">
+            🔄 Synchroniser Discord
+          </button>
+        </form>
+
+        <!-- Supprimer -->
+        <form action="/events/<%= event.id %>/delete" method="POST" onsubmit="return confirm('Voulez-vous vraiment supprimer cet événement et retirer tous ses messages Discord ? Cette action est irréversible.');" class="inline">
+          <button type="submit" class="inline-flex items-center px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium transition duration-200 text-sm shadow-lg shadow-rose-600/20">
+            🗑️ Supprimer l'Événement
+          </button>
+        </form>
       </div>
     </div>
 
