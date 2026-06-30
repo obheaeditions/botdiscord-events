@@ -17,6 +17,8 @@ Stocke les détails de chaque événement créé depuis l'interface d'administra
 | `type` | TEXT | Type de l'événement (Partie de JdR, Partie de Jeu, Présentation, Table ronde) |
 | `start_date` | TEXT | Date de début de l'événement (au format YYYY-MM-DD, ex: "2026-07-12") |
 | `end_date` | TEXT | Date de fin de l'événement (optionnel, au format YYYY-MM-DD, ex: "2026-07-14") |
+| `start_time` | TEXT | Heure de début de l'événement (au format HH:MM, ex: "18:00") |
+| `end_time` | TEXT | Heure de fin de l'événement (optionnel, au format HH:MM, ex: "20:00") |
 | `duration` | TEXT | Durée estimée de l'événement au format HH:MM (ex: "02:30") |
 | `desc_short` | TEXT | Description courte accrocheuse pour l'embed |
 | `desc_org` | TEXT | Description de l'organisation et de la logistique |
@@ -27,6 +29,7 @@ Stocke les détails de chaque événement créé depuis l'interface d'administra
 | `links` | TEXT (JSON) | Tableau contenant les liens web externes saisis dans le formulaire. |
 | `is_pinned` | INTEGER | Indicateur d'épinglage du message sur Discord (0: non, 1: oui) |
 | `is_pinged` | INTEGER | Indicateur d'envoi de mention Discord (0: non, 1: oui) |
+| `is_blocked` | INTEGER | Indicateur de blocage des inscriptions (0: ouvert, 1: bloqué/fermé) |
 | `discord_messages` | TEXT (JSON) | Objet de mapping associant l'ID de chaque canal au message ID publié (ex: `{"123": "456", "789": "101"}`) pour la mise à jour asynchrone multicanale. |
 
 ### Table `registrations`

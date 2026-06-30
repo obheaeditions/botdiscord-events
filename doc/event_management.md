@@ -7,9 +7,11 @@ Ce document décrit les mécanismes de gestion et d'administration des événeme
 ## 1. Clôture / Blocage des Inscriptions
 
 ### Côté Base de Données
+
 Le champ `is_blocked` (de type `INTEGER`, par défaut `0`) dans la table `events` définit si les inscriptions sont ouvertes (`0`) ou fermées (`1`).
 
 ### Côté Discord (Bot)
+
 - Lorsque l'état passe à bloqué :
   - L'embed Discord est automatiquement mis à jour avec le préfixe `🔒 [INSCRIPTIONS FERMÉES]` sur le titre de l'événement.
   - La couleur de l'embed bascule sur un gris neutre (`#7F8C8D`).
@@ -22,8 +24,9 @@ Le champ `is_blocked` (de type `INTEGER`, par défaut `0`) dans la table `events
 ## 2. Suppression d'un Événement
 
 Lorsqu'un administrateur clique sur "Supprimer" dans le backoffice :
+
 1. Le serveur initie une suppression asynchrone des messages de l'événement sur Discord (`deleteEventFromDiscord`). Le bot parcourt la liste des salons cibles et supprime les messages Discord associés.
-2. L'événement est supprimé de la table `events`. 
+2. L'événement est supprimé de la table `events`.
 3. Grâce à la contrainte SQLite `ON DELETE CASCADE`, toutes les réponses d'inscription associées dans la table `registrations` sont automatiquement nettoyées.
 
 ---
@@ -31,6 +34,7 @@ Lorsqu'un administrateur clique sur "Supprimer" dans le backoffice :
 ## 3. Republication et Synchronisation
 
 En cas de modification manuelle ou si un message d'événement est supprimé accidentellement sur Discord par un modérateur, l'administrateur peut forcer la synchronisation :
+
 - Le serveur déclenche `publishEventToDiscord`.
 - Pour chaque canal configuré, le bot tente de récupérer le message existant.
   - S'il existe, l'embed et ses boutons sont modifiés et mis à jour (`msg.edit`).
