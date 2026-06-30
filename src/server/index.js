@@ -54,10 +54,10 @@ const authMiddleware = basicAuth({
 
 import router from './routes.js';
 
-// Apply basic auth to all routes except the root/status or uploads if public
+// Apply basic auth to all routes except uploads or favicon
 app.use((req, res, next) => {
-  // If requesting uploads, allow public access
-  if (req.path.startsWith('/uploads')) {
+  // If requesting uploads or favicon, allow public access
+  if (req.path.startsWith('/uploads') || req.path === '/favicon.ico') {
     return next();
   }
   return authMiddleware(req, res, next);
