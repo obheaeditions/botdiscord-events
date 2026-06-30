@@ -113,4 +113,40 @@ describe('Event Management Integration Tests (Delete, Block, Republish)', () => 
     expect(event.desc_short).toBe('New short desc');
     expect(event.desc_org).toBe('New org logistics');
   });
+
+  test('should edit all fields on POST /events/:id/edit', async () => {
+    const response = await request(app)
+      .post(`/events/${createdEventId}/edit`)
+      .send({
+        title: 'New Title',
+        type: 'Partie de Jeu',
+        duration: '04:15',
+        start_date: '2026-08-01',
+        start_time: '10:00',
+        end_date: '2026-08-02',
+        end_time: '12:00',
+        desc_short: 'New Accroche',
+        desc_org: 'New Organisation',
+        channels: ['987654'],
+        roles: ['111222'],
+        links: 'https://google.com\nhttps://github.com',
+        is_pinned: '1',
+        is_pinged: '1'
+      })
+      .auth(adminUser, adminPassword);
+
+    expect(response.status).toBe(302);
+
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(createdEventId);
+    expect(event.title).toBe('New Title');
+    expect(event.type).toBe('Partie de Jeu');
+    expect(event.duration).toBe('04:15');
+    expect(event.start_date).toBe('2026-08-01');
+    expect(event.end_date).toBe('2026-08-02');
+    expect(event.desc_short).toBe('New Accroche');
+    expect(event.is_pinned).toBe(1);
+    expect(JSON.parse(event.channels)).toEqual(['987654']);
+    expect(JSON.parse(event.roles)).toEqual(['111222']);
+    expect(JSON.parse(event.links)).toEqual(['https://google.com', 'https://github.com']);
+  });
 });

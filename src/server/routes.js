@@ -248,6 +248,180 @@ router.post('/events/create', (req, res) => {
   });
 });
 
+// GET edit event form
+router.get('/events/:id/edit', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+    if (!event) {
+      return res.status(404).send("Événement non trouvé.");
+    }
+
+    const discordData = await getGuildChannelsAndRoles();
+
+    res.render('edit_event', {
+      event,
+      channels: discordData.channels,
+      roles: discordData.roles,
+      error: null
+    });
+  } catch (err) {
+    console.error('Error fetching edit event form:', err);
+    res.status(500).send("Une erreur est survenue lors de la récupération du formulaire.");
+  }
+});
+
+// POST edit event
+router.post('/events/:id/edit', (req, res) => {
+  upload(req, res, async (err) => {
+    const eventId = req.params.id;
+    
+    // Fetch event again for error rendering
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+    if (!event) {
+      return res.status(404).send("Événement non trouvé.");
+    }
+
+    const discordData = await getGuildChannelsAndRoles();
+
+    if (err) {
+      return res.status(400).render('edit_event', {
+        event,
+        channels: discordData.channels,
+        roles: discordData.roles,
+        error: err.message
+      });
+    }
+
+    const {
+      title,
+      type,
+      start_date,
+      end_date,
+      start_time,
+      end_time,
+      duration,
+      desc_short,
+      desc_org,
+      channels,
+      roles,
+      links,
+      is_pinned,
+      is_pinged
+    } = req.body;
+
+    const normalizeArray = (val) => {
+      if (!val) return [];
+      return Array.isArray(val) ? val : [val];
+    };
+
+    const channelList = normalizeArray(channels);
+    const roleList = normalizeArray(roles);
+    const linkList = links ? links.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+    // Basic Input Validations
+    if (!title || !type || !start_date || !start_time || !duration || !desc_short || !desc_org || channelList.length === 0) {
+      return res.status(400).render('edit_event', {
+        event,
+        channels: discordData.channels,
+        roles: discordData.roles,
+        error: 'Veuillez remplir tous les champs obligatoires.'
+      });
+    }
+
+    let currentImages = JSON.parse(event.images || '[]');
+    let currentDocs = JSON.parse(event.documents || '[]');
+
+    // Filter out deleted files
+    const deleteImages = normalizeArray(req.body.delete_images);
+    const deleteDocs = normalizeArray(req.body.delete_documents);
+
+    // Physically delete files from public folder
+    deleteImages.forEach(img => {
+      const filePath = path.join(__dirname, '../../public', img);
+      if (fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (_) {}
+      }
+    });
+    deleteDocs.forEach(doc => {
+      const filePath = path.join(__dirname, '../../public', doc);
+      if (fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (_) {}
+      }
+    });
+
+    currentImages = currentImages.filter(img => !deleteImages.includes(img));
+    currentDocs = currentDocs.filter(doc => !deleteDocs.includes(doc));
+
+    // Append new files
+    const newImages = req.files['images'] ? req.files['images'].map(file => `/uploads/${file.filename}`) : [];
+    const newDocs = req.files['documents'] ? req.files['documents'].map(file => `/uploads/${file.filename}`) : [];
+
+    const finalImages = [...currentImages, ...newImages];
+    const finalDocs = [...currentDocs, ...newDocs];
+
+    try {
+      // 1. Validation de Cohérence Rôle / Canal (Client Discord check)
+      await validateRolePermissionsForChannels(roleList, channelList);
+
+      // 2. Update database
+      db.prepare(`
+        UPDATE events SET
+          title = ?, type = ?, start_date = ?, end_date = ?, start_time = ?, end_time = ?, duration = ?,
+          desc_short = ?, desc_org = ?, channels = ?, roles = ?, images = ?, documents = ?, links = ?,
+          is_pinned = ?, is_pinged = ?
+        WHERE id = ?
+      `).run(
+        title,
+        type,
+        start_date,
+        end_date || null,
+        start_time,
+        end_time || null,
+        duration,
+        desc_short,
+        desc_org,
+        JSON.stringify(channelList),
+        JSON.stringify(roleList),
+        JSON.stringify(finalImages),
+        JSON.stringify(finalDocs),
+        JSON.stringify(linkList),
+        is_pinned ? 1 : 0,
+        is_pinged ? 1 : 0,
+        eventId
+      );
+
+      // 3. Sync Discord messages
+      try {
+        await publishEventToDiscord(eventId);
+      } catch (botErr) {
+        console.error(`Erreur de synchronisation Discord lors de la modification de l'événement:`, botErr);
+      }
+
+      res.redirect(`/events/${eventId}`);
+    } catch (err) {
+      console.error('Error updating event:', err);
+      // Delete newly uploaded files to prevent orphaned files on disk if the update failed
+      const allUploadedFiles = [
+        ...(req.files['images'] || []),
+        ...(req.files['documents'] || [])
+      ];
+      allUploadedFiles.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          try { fs.unlinkSync(file.path); } catch (_) {}
+        }
+      });
+
+      res.status(500).render('edit_event', {
+        event,
+        channels: discordData.channels,
+        roles: discordData.roles,
+        error: err.message || 'Une erreur est survenue lors de la modification de l’événement.'
+      });
+    }
+  });
+});
+
 // GET event details by id
 router.get('/events/:id', (req, res) => {
   try {

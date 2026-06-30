@@ -71,6 +71,24 @@ export async function publishEventToDiscord(eventId) {
   }
 
   const currentMessages = JSON.parse(event.discord_messages || '{}');
+  
+  // 4b. Identify and delete messages on channels that were unselected (removed during edit)
+  for (const [chanId, msgId] of Object.entries(currentMessages)) {
+    if (!channels.includes(chanId)) {
+      try {
+        const channel = await client.channels.fetch(chanId);
+        if (channel && channel.isTextBased()) {
+          const msg = await channel.messages.fetch(msgId);
+          if (msg) {
+            await msg.delete();
+          }
+        }
+      } catch (delErr) {
+        console.warn(`Impossible de supprimer le message ${msgId} du canal désélectionné ${chanId}:`, delErr.message);
+      }
+    }
+  }
+
   const messageIds = {};
 
   // 5. Send or Edit in target channels

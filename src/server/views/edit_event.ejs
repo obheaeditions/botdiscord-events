@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modifier l'Événement - <%= event.title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Flatpickr CSS & Dark Theme -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            discord: '#5865F2',
+            discordDark: '#36393f',
+            discordBackground: '#2f3136'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Outfit', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-discord selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <a href="/" class="bg-discord p-2 rounded-xl text-white shadow-lg shadow-discord/30">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </a>
+        <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-discord bg-clip-text text-transparent">EventBot Portal</span>
+      </div>
+      <div>
+        <a href="/events/<%= event.id %>" class="text-slate-400 hover:text-white transition duration-200 text-sm font-semibold flex items-center">
+          <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          Retour aux Détails
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-grow max-w-3xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8 flex justify-between items-end">
+      <div>
+        <h1 class="text-3xl font-extrabold tracking-tight text-white mb-2">Modifier l'Événement</h1>
+        <p class="text-slate-400">Modifiez les champs ci-dessous pour mettre à jour l'événement et resynchroniser les messages Discord.</p>
+      </div>
+    </div>
+
+    <!-- Alert Block if any -->
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="mb-6 p-4 rounded-2xl border border-red-900 bg-red-950/40 text-red-200 flex items-start space-x-3">
+        <svg class="w-6 h-6 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        <div>
+          <h4 class="font-bold text-red-100">Erreur de Cohérence / Validation</h4>
+          <p class="text-sm mt-1"><%= error %></p>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Event Editing Form -->
+    <form action="/events/<%= event.id %>/edit" method="POST" enctype="multipart/form-data" class="space-y-6 bg-slate-900/30 border border-slate-800 p-8 rounded-3xl backdrop-blur-sm">
+      
+      <!-- Titre -->
+      <div>
+        <label for="title" class="block text-sm font-semibold text-slate-300 mb-2">Titre de l'événement *</label>
+        <input type="text" id="title" name="title" required value="<%= event.title %>" placeholder="ex: Soirée de découverte JdR" 
+          class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-discord transition duration-200">
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Type -->
+        <div>
+          <label for="type" class="block text-sm font-semibold text-slate-300 mb-2">Type d'événement *</label>
+          <select id="type" name="type" required 
+            class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-discord transition duration-200">
+            <option value="Partie de JdR" <%= event.type === 'Partie de JdR' ? 'selected' : '' %>>Partie de JdR</option>
+            <option value="Partie de Jeu" <%= event.type === 'Partie de Jeu' ? 'selected' : '' %>>Partie de Jeu</option>
+            <option value="Présentation" <%= event.type === 'Présentation' ? 'selected' : '' %>>Présentation</option>
+            <option value="Table ronde" <%= event.type === 'Table ronde' ? 'selected' : '' %>>Table ronde</option>
+          </select>
+        </div>
+
+        <!-- Durée -->
+        <div>
+          <label for="duration" class="block text-sm font-semibold text-slate-300 mb-2">Durée estimée (Format HH:MM) *</label>
+          <input type="text" id="duration" name="duration" required value="<%= event.duration %>" placeholder="ex: 02:30" 
+            pattern="([0-9]+):([0-5][0-9])" title="Format HH:MM (ex: 03:30)"
+            class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-discord transition duration-200">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Date et Heure de début -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="start_date" class="block text-sm font-semibold text-slate-300 mb-2">Date de début *</label>
+            <input type="text" id="start_date" name="start_date" required value="<%= event.start_date %>" placeholder="Début..." readonly
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-discord transition duration-200">
+          </div>
+          <div>
+            <label for="start_time" class="block text-sm font-semibold text-slate-300 mb-2">Heure *</label>
+            <input type="time" id="start_time" name="start_time" required value="<%= event.start_time %>"
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-discord transition duration-200">
+          </div>
+        </div>
+
+        <!-- Date et Heure de fin -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="end_date" class="block text-sm font-semibold text-slate-300 mb-2">Date de fin</label>
+            <input type="text" id="end_date" name="end_date" value="<%= event.end_date || '' %>" placeholder="Fin..." readonly
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-discord transition duration-200">
+          </div>
+          <div>
+            <label for="end_time" class="block text-sm font-semibold text-slate-300 mb-2">Heure</label>
+            <input type="time" id="end_time" name="end_time" value="<%= event.end_time || '' %>"
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-discord transition duration-200">
+          </div>
+        </div>
+      </div>
+
+      <!-- Description courte -->
+      <div>
+        <label for="desc_short" class="block text-sm font-semibold text-slate-300 mb-2">Description courte (accroche) *</label>
+        <textarea id="desc_short" name="desc_short" rows="2" required placeholder="Saisissez un court résumé de l'événement..." 
+          class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-discord transition duration-200"><%= event.desc_short %></textarea>
+      </div>
+
+      <!-- Description d'organisation -->
+      <div>
+        <label for="desc_org" class="block text-sm font-semibold text-slate-300 mb-2">Description logistique & organisation *</label>
+        <textarea id="desc_org" name="desc_org" rows="4" required placeholder="Précisez le matériel requis, le nombre de places maximum, etc..." 
+          class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-discord transition duration-200"><%= event.desc_org %></textarea>
+      </div>
+
+      <!-- Canaux Discord Cibles -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-300 mb-2">Canaux de publication Discord *</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-40 overflow-y-auto bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <% const selectedChans = JSON.parse(event.channels || '[]'); %>
+          <% if (channels && channels.length > 0) { %>
+            <% channels.forEach(function(chan) { %>
+              <label class="flex items-center space-x-3 text-slate-350 hover:text-white cursor-pointer transition">
+                <input type="checkbox" name="channels" value="<%= chan.id %>" <%= selectedChans.includes(chan.id) ? 'checked' : '' %> class="rounded border-slate-800 text-discord focus:ring-discord focus:ring-opacity-25 bg-slate-900 w-4 h-4">
+                <span class="text-sm font-medium"># <%= chan.name %></span>
+              </label>
+            <% }) %>
+          <% } else { %>
+            <p class="text-xs text-amber-500 font-semibold p-2">Aucun salon textuel trouvé ou bot hors ligne.</p>
+          <% } %>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Cochez les canaux de discussion où le bot Discord publiera l'événement.</p>
+      </div>
+
+      <!-- Rôles autorisés -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-300 mb-2">Rôles autorisés à s'inscrire</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-40 overflow-y-auto bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <% const selectedRoles = JSON.parse(event.roles || '[]'); %>
+          <% if (roles && roles.length > 0) { %>
+            <% roles.forEach(function(role) { %>
+              <label class="flex items-center space-x-3 text-slate-350 hover:text-white cursor-pointer transition">
+                <input type="checkbox" name="roles" value="<%= role.id %>" <%= selectedRoles.includes(role.id) ? 'checked' : '' %> class="rounded border-slate-800 text-discord focus:ring-discord focus:ring-opacity-25 bg-slate-900 w-4 h-4">
+                <span class="text-sm font-medium"><%= role.name %></span>
+              </label>
+            <% }) %>
+          <% } else { %>
+            <p class="text-xs text-slate-500 p-2">Aucun rôle trouvé sur le serveur Discord.</p>
+          <% } %>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Laissez tout décoché pour un accès libre.</p>
+      </div>
+
+      <!-- Liens Externes -->
+      <div>
+        <label for="links" class="block text-sm font-semibold text-slate-300 mb-2">Liens Web Externes (un lien par ligne)</label>
+        <textarea id="links" name="links" rows="2" placeholder="ex: https://site.com/inscription-complementaire" 
+          class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-discord transition duration-200"><%= JSON.parse(event.links || '[]').join('\n') %></textarea>
+      </div>
+
+      <!-- Existing Images -->
+      <% const currentImages = JSON.parse(event.images || '[]'); %>
+      <% if (currentImages.length > 0) { %>
+        <div>
+          <label class="block text-sm font-semibold text-slate-300 mb-2">Images existantes (cochez pour supprimer)</label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
+            <% currentImages.forEach(function(img) { %>
+              <div class="relative border border-slate-800 rounded-xl overflow-hidden p-2 bg-slate-900 flex flex-col items-center">
+                <img src="<%= img %>" class="object-cover h-16 w-full rounded-lg mb-2" alt="Preview">
+                <label class="flex items-center space-x-1.5 text-xs text-red-400 hover:text-red-300 cursor-pointer">
+                  <input type="checkbox" name="delete_images" value="<%= img %>" class="rounded border-slate-850 text-red-500 bg-slate-950 w-3.5 h-3.5">
+                  <span>Supprimer</span>
+                </label>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- Existing Documents -->
+      <% const currentDocs = JSON.parse(event.documents || '[]'); %>
+      <% if (currentDocs.length > 0) { %>
+        <div>
+          <label class="block text-sm font-semibold text-slate-300 mb-2">Documents existants (cochez pour supprimer)</label>
+          <div class="space-y-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+            <% currentDocs.forEach(function(doc) { %>
+              <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-2 rounded-xl">
+                <span class="text-xs text-slate-300 truncate font-mono max-w-xs"><%= doc.split('/').pop() %></span>
+                <label class="flex items-center space-x-1.5 text-xs text-red-400 hover:text-red-300 cursor-pointer">
+                  <input type="checkbox" name="delete_documents" value="<%= doc %>" class="rounded border-slate-850 text-red-500 bg-slate-950 w-3.5 h-3.5">
+                  <span>Supprimer</span>
+                </label>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- Add New Files Upload -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="images" class="block text-sm font-semibold text-slate-300 mb-2">Ajouter des images (JPEG, PNG)</label>
+          <input type="file" id="images" name="images" multiple accept="image/*"
+            class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-950 file:text-slate-300 hover:file:bg-slate-900 transition duration-200">
+        </div>
+        <div>
+          <label for="documents" class="block text-sm font-semibold text-slate-300 mb-2">Ajouter des documents (PDF, DOCX)</label>
+          <input type="file" id="documents" name="documents" multiple accept=".pdf,.doc,.docx,.txt"
+            class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-950 file:text-slate-300 hover:file:bg-slate-900 transition duration-200">
+        </div>
+      </div>
+
+      <!-- Discord embed options (Pinned, Pinged) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
+        <label class="flex items-center space-x-3 cursor-pointer text-slate-350 hover:text-white transition">
+          <input type="checkbox" name="is_pinned" value="1" <%= event.is_pinned === 1 ? 'checked' : '' %> class="rounded border-slate-800 text-discord focus:ring-discord focus:ring-opacity-25 bg-slate-900 w-4 h-4">
+          <div>
+            <span class="text-sm font-semibold block">📌 Épingler le message</span>
+            <span class="text-xs text-slate-500">Maintient le message en haut du salon.</span>
+          </div>
+        </label>
+
+        <label class="flex items-center space-x-3 cursor-pointer text-slate-350 hover:text-white transition">
+          <input type="checkbox" name="is_pinged" value="1" <%= event.is_pinged === 1 ? 'checked' : '' %> class="rounded border-slate-800 text-discord focus:ring-discord focus:ring-opacity-25 bg-slate-900 w-4 h-4">
+          <div>
+            <span class="text-sm font-semibold block">🔔 Mentionner (@everyone / Rôles)</span>
+            <span class="text-xs text-slate-500">Envoie un ping de notification.</span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex justify-end space-x-4 pt-4 border-t border-slate-800">
+        <a href="/events/<%= event.id %>" class="px-6 py-3 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-900 hover:text-white text-slate-400 font-semibold transition duration-200 text-sm">
+          Annuler
+        </a>
+        <button type="submit" class="px-6 py-3 rounded-xl bg-discord hover:bg-discord/90 text-white font-semibold transition duration-200 text-sm shadow-lg shadow-discord/30">
+          Enregistrer les modifications
+        </button>
+      </div>
+
+    </form>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 bg-slate-950 py-6 mt-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-slate-500">
+      <span>© 2026 EventBot. Tous droits réservés.</span>
+      <span>Propulsé par Antigravity & Node.js</span>
+    </div>
+  </footer>
+
+  <script>
+    // Initialize datepickers
+    flatpickr("#start_date", {
+      locale: "fr",
+      dateFormat: "Y-m-d",
+      minDate: "today",
+      theme: "dark"
+    });
+
+    flatpickr("#end_date", {
+      locale: "fr",
+      dateFormat: "Y-m-d",
+      minDate: "today",
+      theme: "dark"
+    });
+  </script>
+
+</body>
+</html>
