@@ -86,7 +86,7 @@ Stocke les statuts d'inscription mis à jour en temps réel par les clics sur le
 
 ## 🛡️ Sécurisation & Sessions du Backoffice
 
-- **Authentification par Session (Cookie) :** 
+- **Authentification par Session (Cookie) :**
   L'accès aux interfaces d'administration est restreint par un cookie de session HttpOnly nommé `session`. Les utilisateurs non connectés sont redirigés vers `/login`.
 - **Identifiants :** Le nom d'utilisateur et le mot de passe sont comparés avec les variables `ADMIN_USER` et `ADMIN_PASSWORD` définies dans le `.env`.
 - **Compatibilité tests d'intégration (Fallback) :** Si l'en-tête HTTP `Authorization` est présent, le middleware utilise une vérification **Basic Auth** classique. Cela permet de faire fonctionner les scripts de tests automatisés sans gestion de cookies.
@@ -100,11 +100,14 @@ Stocke les statuts d'inscription mis à jour en temps réel par les clics sur le
 ## 📝 Création d'Événements & Validation de Cohérence
 
 ### Checklists Dynamiques
+
 - Au chargement du formulaire de création (`GET /events/create`), le bot interroge en temps réel le serveur Discord configuré pour lister les salons de discussion textuels et les rôles utilisateur (excluant `@everyone` et les rôles système).
 - L'opérateur coche simplement les options. Les valeurs cochées sont normalisées côté serveur en tableaux de chaînes avant validation.
 
 ### Validation de Cohérence Rôle / Canal
+
 Lors de la soumission (`POST /events/create`) :
+
 1. Si des rôles sont sélectionnés, le bot vérifie pour chaque canal sélectionné que les rôles disposent des permissions de lecture (`ViewChannel`) et d'écriture (`SendMessages`).
 2. Si un rôle n'a pas accès à un salon de destination, le serveur rejette la création, supprime automatiquement les fichiers téléchargés (via `multer`) pour éviter l'encombrement du disque, et renvoie une alerte détaillée à l'opérateur.
 
@@ -115,6 +118,9 @@ Lors de la soumission (`POST /events/create`) :
 - **Supprimer un événement :** Envoie des requêtes asynchrones à Discord pour supprimer les messages correspondants de tous les salons cibles via le mapping `discord_messages`, puis retire l'événement de la base SQLite.
 - **Bloquer les inscriptions :** Modifie l'état `is_blocked = 1`. L'embed Discord associé est mis à jour avec le préfixe `🔒 [INSCRIPTIONS FERMÉES]` sur fond gris neutre, et les boutons deviennent désactivés (`disabled`). Les clics de boutons existants sont interceptés et renvoient une erreur éphémère.
 - **Republication / Synchronisation :** Permet de réémettre le message sur Discord. Si un message a été supprimé sur un salon, le bot recrée automatiquement le message et met à jour l'identifiant en base de données.
+- **Gestion des Participants :** Permet d'ajouter manuellement un participant avec son pseudo et son identifiant Discord (User ID Snowflake) directement dans l'interface, ce qui synchronise instantanément les compteurs de l'embed Discord.
+- **Mise en Attente :** Les administrateurs peuvent basculer un inscrit ou un intéressé en statut `"en_attente"`. Ce statut dispose d'un compteur dédié `Orange` affiché dans le backoffice et sur l'embed Discord.
+- **Publication sur Fil Discord (Thread) :** Permet de créer un fil de discussion public sous le message de l'événement nommé `"Composition - [Titre Event]"`, et d'y publier automatiquement un message récapitulant les joueurs inscrits et les remplaçants en attente.
 
 ---
 

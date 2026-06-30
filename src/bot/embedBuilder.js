@@ -64,6 +64,7 @@ export function buildEmbed(event, counts = {}) {
   // Add Inscription Counts
   const countText = `🟢 Inscrits : **${counts.inscrit || 0}**\n` +
                     `🟡 Intéressés : **${counts.interesse || 0}**\n` +
+                    `🟠 En attente : **${counts.en_attente || 0}**\n` +
                     `🔴 Pas intéressés : **${counts.pas_interesse || 0}**`;
   
   embed.addFields({ name: '📊 Inscriptions / Réponses', value: countText });

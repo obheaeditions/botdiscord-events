@@ -158,3 +158,79 @@ export async function deleteEventFromDiscord(eventId) {
     }
   }
 }
+
+export async function publishCompositionToThreads(eventId) {
+  // Fetch event details from DB
+  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+  if (!event) {
+    throw new Error(`Événement ${eventId} introuvable en base.`);
+  }
+
+  const registrations = db.prepare('SELECT * FROM registrations WHERE event_id = ?').all(eventId);
+  const channels = JSON.parse(event.channels);
+  const currentMessages = JSON.parse(event.discord_messages || '{}');
+
+  if (!client.readyAt) {
+    console.warn("Client Discord non connecté. Envoi de la composition simulée (Mode Test).");
+    return;
+  }
+
+  // Build formatted text message listing composition
+  let compMsg = `📋 **Composition finale pour : ${event.title}**\n\n`;
+
+  compMsg += `🟢 **Participants inscrits :**\n`;
+  const inscrits = registrations.filter(r => r.status === 'inscrit');
+  if (inscrits.length > 0) {
+    compMsg += inscrits.map((r, index) => `${index + 1}. ${r.username} (ID: ${r.user_id})`).join('\n');
+  } else {
+    compMsg += `*Aucun inscrit pour le moment.*\n`;
+  }
+
+  compMsg += `\n\n🟠 **Liste d'attente (Waitlist) :**\n`;
+  const enAttente = registrations.filter(r => r.status === 'en_attente');
+  if (enAttente.length > 0) {
+    compMsg += enAttente.map((r, index) => `${index + 1}. ${r.username} (ID: ${r.user_id})`).join('\n');
+  } else {
+    compMsg += `*Aucun participant en attente.*\n`;
+  }
+
+  // Post to the thread associated with each target channel's event message
+  for (const channelId of channels) {
+    const msgId = currentMessages[channelId];
+    if (!msgId) continue;
+
+    try {
+      const channel = await client.channels.fetch(channelId);
+      if (!channel || !channel.isTextBased()) continue;
+
+      const msg = await channel.messages.fetch(msgId);
+      if (!msg) continue;
+
+      let thread = msg.thread;
+      if (!thread) {
+        try {
+          thread = await msg.startThread({
+            name: `Composition - ${event.title.substring(0, 80)}`,
+            autoArchiveDuration: 1440
+          });
+        } catch (threadErr) {
+          // Fallback: If thread already exists but msg.thread is null (can happen if cached value is stale), fetch it
+          try {
+            thread = await channel.threads.fetch(msgId);
+          } catch (_) {
+            try {
+              const activeThreads = await channel.threads.fetchActive();
+              thread = activeThreads.threads.get(msgId);
+            } catch (_) {}
+          }
+        }
+      }
+
+      if (thread) {
+        await thread.send(compMsg);
+      }
+    } catch (err) {
+      console.error(`Erreur lors de la publication de la composition sur le canal ${channelId}:`, err.message);
+    }
+  }
+}

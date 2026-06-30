@@ -90,6 +90,13 @@
           <% } %>
         </form>
 
+        <!-- Publier la Composition -->
+        <form action="/events/<%= event.id %>/publish-composition" method="POST" class="inline">
+          <button type="submit" class="inline-flex items-center px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-medium transition duration-200 text-sm shadow-lg shadow-violet-600/20">
+            📢 Publier la Composition
+          </button>
+        </form>
+
         <!-- Republier / Synchroniser -->
         <form action="/events/<%= event.id %>/republish" method="POST" class="inline">
           <button type="submit" class="inline-flex items-center px-4 py-2 rounded-xl bg-discord hover:bg-discord/90 text-white font-medium transition duration-200 text-sm shadow-lg shadow-discord/20">
@@ -107,7 +114,7 @@
     </div>
 
     <!-- Cards Counters Grid -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
       <div class="bg-emerald-950/20 border border-emerald-900/30 rounded-2xl p-5 text-center">
         <span class="text-emerald-400 font-bold block text-3xl mb-1"><%= counts.inscrit %></span>
         <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Inscrits</span>
@@ -115,6 +122,10 @@
       <div class="bg-amber-950/20 border border-amber-900/30 rounded-2xl p-5 text-center">
         <span class="text-amber-400 font-bold block text-3xl mb-1"><%= counts.interesse %></span>
         <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Intéressés</span>
+      </div>
+      <div class="bg-orange-950/20 border border-orange-900/30 rounded-2xl p-5 text-center">
+        <span class="text-orange-400 font-bold block text-3xl mb-1"><%= counts.en_attente %></span>
+        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">En attente</span>
       </div>
       <div class="bg-rose-950/20 border border-rose-900/30 rounded-2xl p-5 text-center">
         <span class="text-rose-400 font-bold block text-3xl mb-1"><%= counts.pas_interesse %></span>
@@ -260,12 +271,13 @@
                   <th scope="col" class="px-6 py-4">User ID (Snowflake)</th>
                   <th scope="col" class="px-6 py-4">Statut</th>
                   <th scope="col" class="px-6 py-4">Date de réponse</th>
+                  <th scope="col" class="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-850">
                 <% if (registrations.length === 0) { %>
                   <tr>
-                    <td colspan="4" class="px-6 py-12 text-center text-slate-600 italic">
+                    <td colspan="5" class="px-6 py-12 text-center text-slate-600 italic">
                       Aucune inscription enregistrée pour le moment.
                     </td>
                   </tr>
@@ -283,6 +295,8 @@
                           <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-900/30">Inscrit</span>
                         <% } else if (reg.status === 'interesse') { %>
                           <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-950/40 text-amber-400 border border-amber-900/30">Intéressé</span>
+                        <% } else if (reg.status === 'en_attente') { %>
+                          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-950/40 text-orange-400 border border-orange-900/30">En Attente</span>
                         <% } else if (reg.status === 'pas_interesse') { %>
                           <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-950/40 text-rose-400 border border-rose-900/30">Pas Intéressé</span>
                         <% } else { %>
@@ -292,11 +306,34 @@
                       <td class="px-6 py-4 text-xs text-slate-500">
                         <%= new Date(reg.updated_at).toLocaleString('fr-FR') %>
                       </td>
+                      <td class="px-6 py-4 text-xs text-right">
+                        <% if (reg.status === 'inscrit' || reg.status === 'interesse') { %>
+                          <form action="/events/<%= event.id %>/registrations/<%= reg.user_id %>/waitlist" method="POST" class="inline">
+                            <button type="submit" class="px-2.5 py-1 rounded-lg bg-orange-600/20 text-orange-400 border border-orange-600/30 hover:bg-orange-600 hover:text-white transition duration-200 text-[11px] font-semibold shadow-sm">
+                              🟠 Mettre en attente
+                            </button>
+                          </form>
+                        <% } else { %>
+                          <span class="text-slate-600 italic">-</span>
+                        <% } %>
+                      </td>
                     </tr>
                   <% }); %>
                 <% } %>
               </tbody>
             </table>
+          </div>
+
+          <!-- Formulaire d'Ajout Manuel -->
+          <div class="px-6 py-5 border-t border-slate-800 bg-slate-900/40">
+            <h4 class="font-bold text-white text-sm mb-3">➕ Ajouter un participant manuellement</h4>
+            <form action="/events/<%= event.id %>/registrations/add" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input type="text" name="user_id" placeholder="ID Utilisateur Discord (ex: 123456789...)" required class="px-3 py-2 rounded-xl bg-slate-950 border border-slate-850 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-discord text-xs font-mono">
+              <input type="text" name="username" placeholder="Pseudo (ex: JeanDupont)" required class="px-3 py-2 rounded-xl bg-slate-950 border border-slate-850 text-slate-200 placeholder-slate-600 focus:outline-none focus:border-discord text-xs">
+              <button type="submit" class="px-4 py-2 rounded-xl bg-discord hover:bg-discord/90 text-white font-semibold text-xs transition duration-200 shadow-md shadow-discord/20">
+                Ajouter le participant
+              </button>
+            </form>
           </div>
         </div>
       </div>

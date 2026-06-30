@@ -6,7 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import db from '../database/db.js';
 import { validateRolePermissionsForChannels, getGuildChannelsAndRoles } from '../bot/index.js';
-import { publishEventToDiscord, deleteEventFromDiscord } from '../bot/publisher.js';
+import { publishEventToDiscord, deleteEventFromDiscord, publishCompositionToThreads } from '../bot/publisher.js';
 import { sessions, SESSION_COOKIE_NAME } from './sessionStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -263,7 +263,8 @@ router.get('/events/:id', (req, res) => {
       inscrit: 0,
       interesse: 0,
       pas_interesse: 0,
-      desinscrit: 0
+      desinscrit: 0,
+      en_attente: 0
     };
 
     registrations.forEach(reg => {
@@ -339,6 +340,72 @@ router.post('/events/:id/delete', async (req, res) => {
   } catch (err) {
     console.error('Error deleting event:', err);
     res.status(500).send('Une erreur est survenue lors de la suppression de l’événement.');
+  }
+});
+
+// POST add registration manually
+router.post('/events/:id/registrations/add', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const { user_id, username, status } = req.body;
+
+    if (!user_id || !username) {
+      return res.status(400).send("User ID et Nom d'utilisateur requis.");
+    }
+
+    const regStatus = status || 'inscrit';
+    db.prepare(`
+      INSERT OR REPLACE INTO registrations (event_id, user_id, username, status, updated_at)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(eventId, user_id.trim(), username.trim(), regStatus);
+
+    // Sync embeds on Discord
+    try {
+      await publishEventToDiscord(eventId);
+    } catch (botErr) {
+      console.error(`Erreur de synchronisation Discord lors de l'ajout manuel:`, botErr);
+    }
+
+    res.redirect(`/events/${eventId}`);
+  } catch (err) {
+    console.error('Error adding registration manually:', err);
+    res.status(500).send("Une erreur est survenue lors de l'ajout du participant.");
+  }
+});
+
+// POST waitlist registration
+router.post('/events/:id/registrations/:userId/waitlist', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const userId = req.params.userId;
+
+    // Set status to en_attente
+    db.prepare('UPDATE registrations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE event_id = ? AND user_id = ?')
+      .run('en_attente', eventId, userId);
+
+    // Sync embeds on Discord
+    try {
+      await publishEventToDiscord(eventId);
+    } catch (botErr) {
+      console.error(`Erreur de synchronisation Discord lors de la mise en attente:`, botErr);
+    }
+
+    res.redirect(`/events/${eventId}`);
+  } catch (err) {
+    console.error('Error putting registration on waitlist:', err);
+    res.status(500).send("Une erreur est survenue lors du changement de statut.");
+  }
+});
+
+// POST publish composition to Discord threads
+router.post('/events/:id/publish-composition', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    await publishCompositionToThreads(eventId);
+    res.redirect(`/events/${eventId}`);
+  } catch (err) {
+    console.error('Error publishing composition to threads:', err);
+    res.status(500).send('Une erreur est survenue lors de la publication de la composition.');
   }
 });
 
