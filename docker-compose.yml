@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  event-bot:
+    build: .
+    container_name: discord-event-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0 # Listen on all interfaces inside the container
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-choisir_un_mot_de_passe_secu_123!}
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:3000}
+    volumes:
+      # Persist the SQLite database file
+      - ./data:/app/data
+      # Persist uploaded images and documents
+      - ./public/uploads:/app/public/uploads

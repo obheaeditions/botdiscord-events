@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Détails et Supervision - <%= event.title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            discord: '#5865F2',
+            discordDark: '#36393f',
+            discordBackground: '#2f3136'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Outfit', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-discord selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <a href="/" class="bg-discord p-2 rounded-xl text-white shadow-lg shadow-discord/30">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </a>
+        <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-discord bg-clip-text text-transparent">EventBot Portal</span>
+      </div>
+      <div>
+        <a href="/" class="text-slate-400 hover:text-white transition duration-200 text-sm font-semibold flex items-center">
+          <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          Retour au Tableau
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <div class="flex items-center space-x-3 mb-2">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-discord/10 text-discord border border-discord/20"><%= event.type %></span>
+          <span class="text-sm text-slate-500">
+            <% if (event.end_date && event.end_date !== event.start_date) { %>
+              <%= 'Du ' + event.start_date + ' à ' + event.start_time + ' au ' + event.end_date + (event.end_time ? ' à ' + event.end_time : '') %>
+            <% } else { %>
+              <%= 'Le ' + event.start_date + (event.end_time && event.end_time !== event.start_time ? ' de ' + event.start_time + ' à ' + event.end_time : ' à ' + event.start_time) %>
+            <% } %>
+          </span>
+        </div>
+        <h1 class="text-3xl font-extrabold tracking-tight text-white"><%= event.title %></h1>
+      </div>
+    </div>
+
+    <!-- Cards Counters Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-emerald-950/20 border border-emerald-900/30 rounded-2xl p-5 text-center">
+        <span class="text-emerald-400 font-bold block text-3xl mb-1"><%= counts.inscrit %></span>
+        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Inscrits</span>
+      </div>
+      <div class="bg-amber-950/20 border border-amber-900/30 rounded-2xl p-5 text-center">
+        <span class="text-amber-400 font-bold block text-3xl mb-1"><%= counts.interesse %></span>
+        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Intéressés</span>
+      </div>
+      <div class="bg-rose-950/20 border border-rose-900/30 rounded-2xl p-5 text-center">
+        <span class="text-rose-400 font-bold block text-3xl mb-1"><%= counts.pas_interesse %></span>
+        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Pas Intéressés</span>
+      </div>
+      <div class="bg-blue-950/20 border border-blue-900/30 rounded-2xl p-5 text-center">
+        <span class="text-blue-400 font-bold block text-3xl mb-1"><%= counts.desinscrit %></span>
+        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Désinscrits</span>
+      </div>
+    </div>
+
+    <!-- Two columns layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Left side: details -->
+      <div class="lg:col-span-1 space-y-6">
+        <div class="bg-slate-900/30 border border-slate-800 p-6 rounded-3xl backdrop-blur-sm">
+          <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-discord" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Détails de l'événement
+          </h3>
+          <div class="space-y-4 text-sm">
+            <div>
+              <span class="text-slate-500 block">Durée</span>
+              <span class="text-slate-200 font-medium"><%= event.duration %></span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Accroche courte</span>
+              <span class="text-slate-300"><%= event.desc_short %></span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Détails organisation</span>
+              <span class="text-slate-300 whitespace-pre-line"><%= event.desc_org %></span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Canaux cibles</span>
+              <span class="text-xs font-mono text-slate-400 bg-slate-950 p-2 rounded-lg block mt-1 overflow-x-auto"><%= JSON.parse(event.channels).join(', ') %></span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">Rôles Discord requis</span>
+              <% const rList = JSON.parse(event.roles); %>
+              <% if (rList.length === 0) { %>
+                <span class="text-emerald-400 font-semibold mt-1 inline-block">Ouvert à tous (Aucun rôle requis)</span>
+              <% } else { %>
+                <span class="text-xs font-mono text-slate-400 bg-slate-950 p-2 rounded-lg block mt-1 overflow-x-auto"><%= rList.join(', ') %></span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Files and links card -->
+        <div class="bg-slate-900/30 border border-slate-800 p-6 rounded-3xl backdrop-blur-sm">
+          <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-discord" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+            </svg>
+            Ressources Liées
+          </h3>
+          <div class="space-y-4 text-sm">
+            <!-- Images -->
+            <div>
+              <span class="text-slate-500 block mb-2">Images</span>
+              <% const imgList = JSON.parse(event.images); %>
+              <% if (imgList.length === 0) { %>
+                <span class="text-slate-600 text-xs italic">Aucune image</span>
+              <% } else { %>
+                <div class="grid grid-cols-2 gap-2">
+                  <% imgList.forEach(function(img) { %>
+                    <a href="<%= img %>" target="_blank" class="block border border-slate-800 rounded-xl overflow-hidden hover:border-discord transition">
+                      <img src="<%= img %>" class="object-cover h-20 w-full" alt="Illustration">
+                    </a>
+                  <% }); %>
+                </div>
+              <% } %>
+            </div>
+
+            <!-- Documents -->
+            <div>
+              <span class="text-slate-500 block mb-1">Documents joints</span>
+              <% const docList = JSON.parse(event.documents); %>
+              <% if (docList.length === 0) { %>
+                <span class="text-slate-600 text-xs italic block">Aucun document</span>
+              <% } else { %>
+                <ul class="space-y-1.5">
+                  <% docList.forEach(function(doc) { %>
+                    <li>
+                      <a href="<%= doc %>" target="_blank" class="inline-flex items-center text-xs font-semibold text-discord hover:text-white transition duration-200">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <%= doc.split('/').pop() %>
+                      </a>
+                    </li>
+                  <% }); %>
+                </ul>
+              <% } %>
+            </div>
+
+            <!-- Links -->
+            <div>
+              <span class="text-slate-500 block mb-1">Liens Externes</span>
+              <% const linkList = JSON.parse(event.links); %>
+              <% if (linkList.length === 0) { %>
+                <span class="text-slate-600 text-xs italic block">Aucun lien</span>
+              <% } else { %>
+                <ul class="space-y-1.5">
+                  <% linkList.forEach(function(link) { %>
+                    <li>
+                      <a href="<%= link %>" target="_blank" class="inline-flex items-center text-xs font-semibold text-slate-400 hover:text-white transition duration-200 truncate max-w-full">
+                        <svg class="w-4 h-4 mr-1 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                        <%= link %>
+                      </a>
+                    </li>
+                  <% }); %>
+                </ul>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right side: registrations table -->
+      <div class="lg:col-span-2">
+        <div class="bg-slate-900/30 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-sm">
+          <div class="px-6 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+            <h3 class="font-bold text-white text-lg flex items-center">
+              <svg class="w-5 h-5 mr-2 text-discord" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+              Liste des Inscrits
+            </h3>
+            <span class="text-xs text-slate-500 font-mono"><%= registrations.length %> réponse(s)</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="text-xs uppercase bg-slate-950 text-slate-400 font-semibold tracking-wider">
+                <tr>
+                  <th scope="col" class="px-6 py-4">Pseudo Discord</th>
+                  <th scope="col" class="px-6 py-4">User ID (Snowflake)</th>
+                  <th scope="col" class="px-6 py-4">Statut</th>
+                  <th scope="col" class="px-6 py-4">Date de réponse</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-850">
+                <% if (registrations.length === 0) { %>
+                  <tr>
+                    <td colspan="4" class="px-6 py-12 text-center text-slate-600 italic">
+                      Aucune inscription enregistrée pour le moment.
+                    </td>
+                  </tr>
+                <% } else { %>
+                  <% registrations.forEach(function(reg) { %>
+                    <tr class="hover:bg-slate-900/40 transition">
+                      <td class="px-6 py-4 font-semibold text-slate-200">
+                        <%= reg.username %>
+                      </td>
+                      <td class="px-6 py-4 text-xs font-mono text-slate-500">
+                        <%= reg.user_id %>
+                      </td>
+                      <td class="px-6 py-4">
+                        <% if (reg.status === 'inscrit') { %>
+                          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-900/30">Inscrit</span>
+                        <% } else if (reg.status === 'interesse') { %>
+                          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-950/40 text-amber-400 border border-amber-900/30">Intéressé</span>
+                        <% } else if (reg.status === 'pas_interesse') { %>
+                          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-950/40 text-rose-400 border border-rose-900/30">Pas Intéressé</span>
+                        <% } else { %>
+                          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-950/40 text-blue-400 border border-blue-900/30">Désinscrit</span>
+                        <% } %>
+                      </td>
+                      <td class="px-6 py-4 text-xs text-slate-500">
+                        <%= new Date(reg.updated_at).toLocaleString('fr-FR') %>
+                      </td>
+                    </tr>
+                  <% }); %>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 bg-slate-950 py-6 mt-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-slate-500">
+      <span>© 2026 EventBot. Tous droits réservés.</span>
+      <span>Propulsé par Antigravity & Node.js</span>
+    </div>
+  </footer>
+
+</body>
+</html>

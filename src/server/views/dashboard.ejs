@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supervision des Événements Discord</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            discord: '#5865F2',
+            discordDark: '#36393f',
+            discordBackground: '#2f3136'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Outfit', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-discord selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-discord p-2 rounded-xl text-white shadow-lg shadow-discord/30">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-discord bg-clip-text text-transparent">EventBot Portal</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a href="/events/create" class="inline-flex items-center px-4 py-2 rounded-xl bg-discord hover:bg-discord/90 text-white font-medium shadow-lg shadow-discord/20 transition-all duration-200 transform hover:-translate-y-0.5">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          Créer un Événement
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+      <h1 class="text-3xl font-extrabold tracking-tight text-white mb-2">Tableau de Supervision</h1>
+      <p class="text-slate-400">Gérez vos événements Discord et suivez les inscriptions en temps réel.</p>
+    </div>
+
+    <!-- Active Events List -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <% if (events.length === 0) { %>
+        <div class="col-span-full py-16 px-4 rounded-3xl border border-dashed border-slate-800 bg-slate-900/20 text-center">
+          <div class="inline-flex p-4 rounded-full bg-slate-900 border border-slate-800 text-slate-500 mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-slate-300">Aucun événement</h3>
+          <p class="text-slate-500 mt-1 max-w-md mx-auto">Créez votre premier événement pour le publier sur vos canaux Discord et suivre les inscriptions.</p>
+          <a href="/events/create" class="mt-4 inline-flex items-center px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 font-medium transition duration-200">
+            Commencer
+          </a>
+        </div>
+      <% } else { %>
+        <% events.forEach(function(event) { %>
+          <div class="rounded-3xl border border-slate-800 bg-slate-900/30 p-6 flex flex-col justify-between hover:border-discord/40 transition duration-300 group">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span class="px-3 py-1 rounded-full text-xs font-semibold bg-discord/10 text-discord border border-discord/20"><%= event.type %></span>
+                <span class="text-xs text-slate-500">
+                  <% if (event.end_date && event.end_date !== event.start_date) { %>
+                    <%= 'Du ' + event.start_date + ' à ' + event.start_time + ' au ' + event.end_date + (event.end_time ? ' à ' + event.end_time : '') %>
+                  <% } else { %>
+                    <%= 'Le ' + event.start_date + (event.end_time && event.end_time !== event.start_time ? ' de ' + event.start_time + ' à ' + event.end_time : ' à ' + event.start_time) %>
+                  <% } %>
+                </span>
+              </div>
+              <h3 class="text-xl font-bold text-white mb-2 group-hover:text-discord transition duration-200"><%= event.title %></h3>
+              <p class="text-slate-400 text-sm mb-4 line-clamp-2"><%= event.desc_short %></p>
+            </div>
+            <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+              <span class="text-xs text-slate-500">Durée: <%= event.duration %></span>
+              <a href="/events/<%= event.id %>" class="inline-flex items-center text-sm font-semibold text-discord hover:text-white transition duration-200">
+                Superviser
+                <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-0.5 transition duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+              </a>
+            </div>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-900 bg-slate-950 py-6 mt-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-slate-500">
+      <span>© 2026 EventBot. Tous droits réservés.</span>
+      <span>Propulsé par Antigravity & Node.js</span>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,236 @@
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import crypto from 'crypto';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import db from '../database/db.js';
+import { validateRolePermissionsForChannels, getGuildChannelsAndRoles } from '../bot/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const router = express.Router();
+
+// Ensure upload directory exists
+const uploadDir = path.join(__dirname, '../../public/uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Multer Storage Configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename using cryptographically strong random bytes (secure coding guideline)
+    const uniqueSuffix = crypto.randomBytes(16).toString('hex');
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${uniqueSuffix}${ext}`);
+  }
+});
+
+// Multer File Type and Size Filter (secure coding guideline)
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // Limit file size to 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedImageExts = ['.png', '.jpg', '.jpeg'];
+    const allowedDocExts = ['.pdf', '.docx', '.txt'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    
+    if (file.fieldname === 'images' && allowedImageExts.includes(ext)) {
+      cb(null, true);
+    } else if (file.fieldname === 'documents' && allowedDocExts.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Type de fichier non autorisé : "${ext}"`));
+    }
+  }
+}).fields([
+  { name: 'images', maxCount: 10 },
+  { name: 'documents', maxCount: 10 }
+]);
+
+// GET dashboard list of events
+router.get('/', (req, res) => {
+  try {
+    const events = db.prepare('SELECT * FROM events ORDER BY id DESC').all();
+    res.render('dashboard', { events });
+  } catch (err) {
+    console.error('Error fetching dashboard:', err);
+    res.status(500).send('Une erreur est survenue lors de la récupération des événements.');
+  }
+});
+
+// GET render creation form
+router.get('/events/create', async (req, res) => {
+  try {
+    const { channels, roles } = await getGuildChannelsAndRoles();
+    res.render('create_event', { channels, roles, error: null });
+  } catch (err) {
+    console.error('Error fetching channels/roles:', err);
+    res.render('create_event', { channels: [], roles: [], error: 'Impossible de récupérer les salons et rôles Discord.' });
+  }
+});
+
+// POST handle event creation
+router.post('/events/create', (req, res) => {
+  upload(req, res, async (err) => {
+    // Fetch channels and roles beforehand to pass them in case of rendering errors
+    let discordData = { channels: [], roles: [] };
+    try {
+      discordData = await getGuildChannelsAndRoles();
+    } catch (_) {}
+
+    if (err) {
+      return res.status(400).render('create_event', {
+        channels: discordData.channels,
+        roles: discordData.roles,
+        error: err.message
+      });
+    }
+
+    const {
+      title,
+      type,
+      start_date,
+      end_date,
+      start_time,
+      end_time,
+      duration,
+      desc_short,
+      desc_org,
+      channels,
+      roles,
+      links,
+      is_pinned,
+      is_pinged
+    } = req.body;
+
+    // Helper to normalize checkbox outputs (which can be string, array or undefined)
+    const normalizeArray = (val) => {
+      if (!val) return [];
+      return Array.isArray(val) ? val : [val];
+    };
+
+    const channelList = normalizeArray(channels);
+    const roleList = normalizeArray(roles);
+    const linkList = links ? links.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+    // Basic Input Validations
+    if (!title || !type || !start_date || !start_time || !duration || !desc_short || !desc_org || channelList.length === 0) {
+      return res.status(400).render('create_event', {
+        channels: discordData.channels,
+        roles: discordData.roles,
+        error: 'Veuillez remplir tous les champs obligatoires.'
+      });
+    }
+
+    // Capture uploaded files from multer
+    const imageList = req.files['images'] ? req.files['images'].map(file => `/uploads/${file.filename}`) : [];
+    const documentList = req.files['documents'] ? req.files['documents'].map(file => `/uploads/${file.filename}`) : [];
+
+    try {
+      // 1. Validation de Cohérence Rôle / Canal (Client Discord check)
+      await validateRolePermissionsForChannels(roleList, channelList);
+
+      // 2. Insert event details in the database
+      const insertStmt = db.prepare(`
+        INSERT INTO events (
+          title, type, start_date, end_date, start_time, end_time, duration, desc_short, desc_org,
+          channels, roles, images, documents, links, is_pinned, is_pinged, discord_messages
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const result = insertStmt.run(
+        title,
+        type,
+        start_date,
+        end_date || null,
+        start_time,
+        end_time || null,
+        duration,
+        desc_short,
+        desc_org,
+        JSON.stringify(channelList),
+        JSON.stringify(roleList),
+        JSON.stringify(imageList),
+        JSON.stringify(documentList),
+        JSON.stringify(linkList),
+        is_pinned ? 1 : 0,
+        is_pinged ? 1 : 0,
+        JSON.stringify({}) // Initially empty mapping of messages
+      );
+
+      const eventId = result.lastInsertRowid;
+
+      // 3. Trigger publishing logic on Discord
+      const { publishEventToDiscord } = await import('../bot/publisher.js');
+      
+      // Publish event asynchronously (fail-safe and non-blocking for Express response)
+      publishEventToDiscord(eventId).catch(pubErr => {
+        console.error(`Erreur de publication du bot pour l'événement ${eventId}:`, pubErr);
+      });
+
+      // Redirect to dashboard on success
+      res.redirect('/');
+
+    } catch (validationErr) {
+      // If validation or insertion fails, delete uploaded files to prevent orphaned files on disk
+      const allUploadedFiles = [
+        ...(req.files['images'] || []),
+        ...(req.files['documents'] || [])
+      ];
+      allUploadedFiles.forEach(file => {
+        try {
+          fs.unlinkSync(file.path);
+        } catch (unlinkErr) {
+          console.error('Failed to clean up uploaded file:', file.path, unlinkErr);
+        }
+      });
+
+      return res.status(400).render('create_event', {
+        channels: discordData.channels,
+        roles: discordData.roles,
+        error: validationErr.message
+      });
+    }
+  });
+});
+
+// GET event details by id
+router.get('/events/:id', (req, res) => {
+  try {
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.id);
+    if (!event) {
+      return res.status(404).send('Événement non trouvé.');
+    }
+
+    const registrations = db.prepare('SELECT * FROM registrations WHERE event_id = ? ORDER BY updated_at DESC').all(req.params.id);
+
+    // Aggregate counts
+    const counts = {
+      inscrit: 0,
+      interesse: 0,
+      pas_interesse: 0,
+      desinscrit: 0
+    };
+
+    registrations.forEach(reg => {
+      if (counts[reg.status] !== undefined) {
+        counts[reg.status]++;
+      }
+    });
+
+    res.render('event_details', { event, registrations, counts });
+  } catch (err) {
+    console.error('Error fetching event details:', err);
+    res.status(500).send('Une erreur est survenue lors de la récupération des détails de l’événement.');
+  }
+});
+
+export default router;
