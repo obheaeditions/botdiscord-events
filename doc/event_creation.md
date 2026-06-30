@@ -33,3 +33,13 @@ Avant l'insertion en base de données et la publication, le serveur vérifie la 
   3. Il vérifie que chaque rôle existe sur le serveur Discord cible.
   4. Il vérifie que chaque rôle possède les permissions `ViewChannel` (lire le salon) et `SendMessages` (écrire des messages) sur chaque canal configuré.
   5. En cas d'incohérence, le serveur intercepte l'erreur, supprime immédiatement tous les fichiers temporaires déjà écrits sur le disque par `multer` (pour éviter les fichiers orphelins), et renvoie le formulaire avec un code d'erreur HTTP 400 et le message d'erreur d'incohérence.
+
+## Modification d'un Événement
+
+L'opérateur peut modifier tous les aspects d'un événement existant via la page de modification (`GET /events/:id/edit`).
+
+- **Formulaire Pré-rempli :** Tous les champs (titre, dates, heures, durée, accroche, organisation, canaux, rôles, liens) sont pré-remplis avec les valeurs actuelles de l'événement.
+- **Gestion des Fichiers Existants :** Les illustrations et documents existants sont affichés avec des cases à cocher permettant de demander leur suppression. Au traitement de la requête (`POST /events/:id/edit`), les fichiers cochés sont physiquement supprimés du disque et retirés de la base de données.
+- **Ajout de Nouveaux Fichiers :** L'administrateur peut téléverser de nouvelles images ou documents qui s'ajouteront à la liste existante.
+- **Nettoyage des Salons Discord :** Si des salons de publication sont désélectionnés lors de la modification, le bot supprime automatiquement les messages correspondants sur les salons retirés pour éviter les publications obsolètes.
+- **Mise à Jour Asynchrone :** L'embed Discord est mis à jour sur tous les salons restants/nouveaux pour refléter les modifications en temps réel.

@@ -115,6 +115,7 @@ Lors de la soumission (`POST /events/create`) :
 
 ## ⚙️ Administration Avancée des Événements
 
+- **Modifier un événement :** Permet de modifier tous les aspects de l'événement (Titre, Type, Dates, Heures, Durée, Accroche, Logistique, Salons cibles, Rôles requis, Liens, Épinglage, Pings). Permet d'ajouter de nouveaux fichiers (images/documents) ou de cocher les fichiers existants pour les supprimer du serveur et de la base de données. Si des salons de publication sont retirés, les messages correspondants y sont automatiquement effacés sur Discord.
 - **Supprimer un événement :** Envoie des requêtes asynchrones à Discord pour supprimer les messages correspondants de tous les salons cibles via le mapping `discord_messages`, puis retire l'événement de la base SQLite.
 - **Bloquer les inscriptions :** Modifie l'état `is_blocked = 1`. L'embed Discord associé est mis à jour avec le préfixe `🔒 [INSCRIPTIONS FERMÉES]` sur fond gris neutre, et les boutons deviennent désactivés (`disabled`). Les clics de boutons existants sont interceptés et renvoient une erreur éphémère.
 - **Republication / Synchronisation :** Permet de réémettre le message sur Discord. Si un message a été supprimé sur un salon, le bot recrée automatiquement le message et met à jour l'identifiant en base de données.
