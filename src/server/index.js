@@ -3,6 +3,7 @@ import basicAuth from 'express-basic-auth';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { sessions, SESSION_COOKIE_NAME } from './sessionStore.js';
 
 dotenv.config();
 
@@ -42,26 +43,55 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.join(__dirname, '../../public/uploads')));
 
 // Configure Basic Authentication
+// Configure Authentication with Cookie Session and Basic Auth Fallback (BFF API/testing)
 const adminUser = process.env.ADMIN_USER || 'admin';
 const adminPassword = process.env.ADMIN_PASSWORD || 'password';
 
-// Middleware for Basic Auth
-const authMiddleware = basicAuth({
-  users: { [adminUser]: adminPassword },
-  challenge: true,
-  realm: 'Backoffice Bot Discord'
+// Helper to parse cookies from headers
+function parseCookies(cookieHeader) {
+  const list = {};
+  if (!cookieHeader) return list;
+  cookieHeader.split(';').forEach(cookie => {
+    const parts = cookie.split('=');
+    list[parts.shift().trim()] = decodeURI(parts.join('='));
+  });
+  return list;
+}
+
+// Basic Auth checker (used as a fallback for API/testing compatibility)
+const checkBasicAuth = basicAuth({
+  users: { [adminUser]: adminPassword }
 });
+
+const authMiddleware = (req, res, next) => {
+  // 1. Exclude public assets
+  if (
+    req.path.startsWith('/uploads') || 
+    req.path === '/favicon.ico' || 
+    req.path === '/login'
+  ) {
+    return next();
+  }
+
+  // 2. Check Cookie Session
+  const cookies = parseCookies(req.headers.cookie);
+  const token = cookies[SESSION_COOKIE_NAME];
+  if (token && sessions.has(token)) {
+    return next();
+  }
+
+  // 3. Fallback to Basic Auth (for integration testing compatibility)
+  if (req.headers.authorization) {
+    return checkBasicAuth(req, res, next);
+  }
+
+  // 4. Otherwise redirect to login page
+  res.redirect('/login');
+};
 
 import router from './routes.js';
 
-// Apply basic auth to all routes except uploads or favicon
-app.use((req, res, next) => {
-  // If requesting uploads or favicon, allow public access
-  if (req.path.startsWith('/uploads') || req.path === '/favicon.ico') {
-    return next();
-  }
-  return authMiddleware(req, res, next);
-});
+app.use(authMiddleware);
 
 // Mount routes
 app.use('/', router);

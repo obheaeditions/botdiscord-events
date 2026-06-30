@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import db from '../database/db.js';
 import { validateRolePermissionsForChannels, getGuildChannelsAndRoles } from '../bot/index.js';
 import { publishEventToDiscord, deleteEventFromDiscord } from '../bot/publisher.js';
+import { sessions, SESSION_COOKIE_NAME } from './sessionStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,6 +56,50 @@ const upload = multer({
   { name: 'images', maxCount: 10 },
   { name: 'documents', maxCount: 10 }
 ]);
+
+// GET login page
+router.get('/login', (req, res) => {
+  res.render('login', { error: null });
+});
+
+// POST login handler
+router.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  const adminUser = process.env.ADMIN_USER || 'admin';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'password';
+
+  if (username === adminUser && password === adminPassword) {
+    // Generate secure random session token
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.add(token);
+
+    // Set HttpOnly session cookie
+    res.setHeader('Set-Cookie', `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax`);
+    return res.redirect('/');
+  }
+
+  res.render('login', { error: 'Identifiants incorrects.' });
+});
+
+// POST logout handler
+router.post('/logout', (req, res) => {
+  const cookieHeader = req.headers.cookie || '';
+  const cookies = {};
+  cookieHeader.split(';').forEach(c => {
+    const parts = c.split('=');
+    if (parts.length === 2) {
+      cookies[parts[0].trim()] = parts[1].trim();
+    }
+  });
+
+  const token = cookies[SESSION_COOKIE_NAME];
+  if (token) {
+    sessions.delete(token);
+  }
+
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  res.redirect('/login');
+});
 
 // GET dashboard list of events
 router.get('/', (req, res) => {
