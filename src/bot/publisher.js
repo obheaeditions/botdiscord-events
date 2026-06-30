@@ -30,7 +30,7 @@ export async function publishEventToDiscord(eventId) {
 
   // 1. Fetch registrations responses to render current stats
   const registrations = db.prepare('SELECT * FROM registrations WHERE event_id = ?').all(eventId);
-  const counts = { inscrit: 0, interesse: 0, pas_interesse: 0, desinscrit: 0 };
+  const counts = { inscrit: 0, interesse: 0, pas_interesse: 0, desinscrit: 0, en_attente: 0 };
   registrations.forEach(r => {
     if (counts[r.status] !== undefined) {
       counts[r.status]++;

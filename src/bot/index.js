@@ -169,7 +169,7 @@ client.on('interactionCreate', async interaction => {
 
     // 2. Fetch all registrations to compute counts
     const registrations = db.prepare('SELECT * FROM registrations WHERE event_id = ?').all(eventId);
-    const counts = { inscrit: 0, interesse: 0, pas_interesse: 0, desinscrit: 0 };
+    const counts = { inscrit: 0, interesse: 0, pas_interesse: 0, desinscrit: 0, en_attente: 0 };
     registrations.forEach(r => {
       if (counts[r.status] !== undefined) {
         counts[r.status]++;
