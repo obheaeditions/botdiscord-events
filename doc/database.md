@@ -42,7 +42,8 @@ Stocke le statut de réponse en temps réel de chaque utilisateur Discord par ra
 | `event_id` | INTEGER | Clé étrangère référençant `events.id` (avec suppression en cascade `ON DELETE CASCADE`) |
 | `user_id` | TEXT | Identifiant Discord unique de l'utilisateur (`snowflake`) |
 | `username` | TEXT | Nom d'utilisateur Discord pour affichage |
-| `status` | TEXT | Statut de réponse (`inscrit`, `desinscrit`, `interesse`, `pas_interesse`) |
+| `status` | TEXT | Statut de réponse (`inscrit`, `desinscrit`, `interesse`, `pas_interesse`, `en_attente`) |
+| `previous_status` | TEXT | Statut initial sauvegardé de l'utilisateur (`inscrit` ou `interesse`) lorsqu'il est mis en liste d'attente (optionnel) |
 | `updated_at` | TEXT | Horodatage de l'action utilisateur (par défaut `CURRENT_TIMESTAMP`) |
 
 **Contraintes & Index :**

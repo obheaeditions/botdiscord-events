@@ -16,13 +16,16 @@ L'administration s'organise autour de deux vues principales.
 
 - **Route :** `GET /events/:id`
 - **Objectif :** Présenter les statistiques d'inscription consolidées ainsi que la liste nominative des inscrits.
-- **Éléments Affichés :**
-  - **Détails de l'Événement :** Type, durée, descriptions logistiques, liens externes, documents et images téléversées.
-  - **Indicateurs de Performance (Cartes de Compteurs) :** Nombre consolidé pour chacun des quatre statuts (`inscrits`, `intéressés`, `pas intéressés`, `désinscrits`).
-  - **Tableau des Participants :** Tableau listant le pseudo Discord, le Snowflake ID de l'utilisateur, son statut actuel et la date/heure de sa dernière interaction.
+- **Mise en page :** Organisé en 2 colonnes égales (1/2 - 1/2) sur grand écran.
+  - **Colonne Gauche (Informations) :** Affiche le titre, type, durée, descriptions logistiques, liens externes, documents joints et images d'illustrations. Un bouton « Modifier l'Événement » permet de naviguer vers le formulaire d'édition.
+  - **Colonne Droite (Participants & Actions) :**
+    - **Indicateurs de Performance (Cartes de Compteurs) :** Nombre consolidé pour chacun des 5 statuts (`inscrits`, `intéressés`, `en attente`, `pas intéressés`, `désinscrits`).
+    - **Tableau des Participants :** Tableau listant le pseudo Discord, le Snowflake ID, son statut actuel, la date/heure de dernière interaction, et les actions d'administration (mise en attente / réintégration).
+    - **Formulaire d'ajout rapide :** Permet d'ajouter manuellement un participant.
 
 ## Agrégation des Données (SQL)
 
 Pour assurer un rafraîchissement performant et en temps réel :
+
 - Le tableau de supervision lit directement la table `registrations`.
 - Les compteurs sont agrégés côté serveur lors de la requête de la vue détaillée en filtrant sur `event_id` et en triant la liste par date de réponse décroissante (`ORDER BY updated_at DESC`).
