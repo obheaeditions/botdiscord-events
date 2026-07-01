@@ -1,7 +1,7 @@
 import { Client, GatewayIntentBits } from 'discord.js';
 import dotenv from 'dotenv';
 import db from '../database/db.js';
-import { buildEmbed } from './embedBuilder.js';
+import { buildEmbeds } from './embedBuilder.js';
 
 dotenv.config();
 
@@ -178,11 +178,11 @@ client.on('interactionCreate', async interaction => {
       }
     });
 
-    // 3. Regenerate the Embed with updated counts
-    const updatedEmbed = buildEmbed(event, counts);
+    // 3. Regenerate the Embeds with updated counts
+    const updatedEmbeds = buildEmbeds(event, counts);
 
     // 4. Update the current Discord message
-    await interaction.update({ embeds: [updatedEmbed] });
+    await interaction.update({ embeds: updatedEmbeds });
 
     // 4b. Send private DM to user if they registered or showed interest
     if ((action === 'inscrit' || action === 'interesse') && typeof user.send === 'function') {
@@ -205,7 +205,7 @@ client.on('interactionCreate', async interaction => {
           if (channel && channel.isTextBased()) {
             const msg = await channel.messages.fetch(msgId);
             if (msg) {
-              await msg.edit({ embeds: [updatedEmbed] });
+              await msg.edit({ embeds: updatedEmbeds });
             }
           }
         } catch (err) {

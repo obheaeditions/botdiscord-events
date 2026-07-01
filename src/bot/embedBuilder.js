@@ -10,7 +10,11 @@ const TYPE_COLORS = {
   'Table ronde': '#9B59B6'        // Purple
 };
 
-export function buildEmbed(event, counts = {}) {
+// Discord caps a message at 10 embeds total; 2 are reserved for the header/details cards above.
+const MAX_GALLERY_IMAGES = 8;
+
+// Returns an ordered array of embeds: [header (title+image), details (fields), ...gallery thumbnails]
+export function buildEmbeds(event, counts = {}) {
   const isBlocked = event.is_blocked === 1;
   const color = isBlocked ? '#7F8C8D' : (TYPE_COLORS[event.type] || '#F1C40F');
   const title = isBlocked ? `🔒 [INSCRIPTIONS FERMÉES] ${event.title}` : event.title;
@@ -31,9 +35,25 @@ export function buildEmbed(event, counts = {}) {
     }
   }
 
-  const embed = new EmbedBuilder()
+  const images = JSON.parse(event.images || '[]');
+  const resolvedImages = images.map(img => img.startsWith('http') ? img : `${backendUrl}${img}`);
+
+  // Header card: title + short pitch + the main image, kept free of fields so the image sits near the top
+  const headerEmbed = new EmbedBuilder()
     .setTitle(title)
     .setDescription(event.desc_short)
+    .setColor(color);
+
+  if (resolvedImages.length > 0) {
+    // Logged explicitly because Discord silently drops unreachable image URLs without raising an error
+    console.log(`[EmbedBuilder] Événement ${event.id} : URL image principale -> ${resolvedImages[0]}`);
+    headerEmbed.setImage(resolvedImages[0]);
+  } else {
+    console.log(`[EmbedBuilder] Événement ${event.id} : aucune image trouvée en base (champ "images" vide).`);
+  }
+
+  // Details card: all informational fields
+  const detailsEmbed = new EmbedBuilder()
     .setColor(color)
     .addFields(
       { name: '📅 Date / Période', value: dateValue, inline: true },
@@ -46,7 +66,7 @@ export function buildEmbed(event, counts = {}) {
   const links = JSON.parse(event.links || '[]');
   if (links.length > 0) {
     const formattedLinks = links.map(link => `🔗 [Lien externe](${link})`).join('\n');
-    embed.addFields({ name: '🌐 Liens utiles', value: formattedLinks });
+    detailsEmbed.addFields({ name: '🌐 Liens utiles', value: formattedLinks });
   }
 
   // Add Uploaded Documents as download URLs pointing to Express
@@ -58,7 +78,7 @@ export function buildEmbed(event, counts = {}) {
       const docUrl = doc.startsWith('http') ? doc : `${backendUrl}${doc}`;
       return `📄 [${docName}](${docUrl})`;
     }).join('\n');
-    embed.addFields({ name: '📎 Documents joints', value: formattedDocs });
+    detailsEmbed.addFields({ name: '📎 Documents joints', value: formattedDocs });
   }
 
   // Add Inscription Counts
@@ -66,21 +86,21 @@ export function buildEmbed(event, counts = {}) {
                     `🟡 Intéressés : **${counts.interesse || 0}**\n` +
                     `🟠 En attente : **${counts.en_attente || 0}**\n` +
                     `🔴 Pas intéressés : **${counts.pas_interesse || 0}**`;
-  
-  embed.addFields({ name: '📊 Inscriptions / Réponses', value: countText });
 
-  // Add the first image as the main visual image of the embed
-  const images = JSON.parse(event.images || '[]');
-  if (images.length > 0) {
-    const imgUrl = images[0].startsWith('http') ? images[0] : `${backendUrl}${images[0]}`;
-    // Logged explicitly because Discord silently drops unreachable image URLs without raising an error
-    console.log(`[EmbedBuilder] Événement ${event.id} : URL image envoyée à Discord -> ${imgUrl}`);
-    embed.setImage(imgUrl);
-  } else {
-    console.log(`[EmbedBuilder] Événement ${event.id} : aucune image trouvée en base (champ "images" vide).`);
+  detailsEmbed.addFields({ name: '📊 Inscriptions / Réponses', value: countText });
+  detailsEmbed.setTimestamp();
+
+  const embeds = [headerEmbed, detailsEmbed];
+
+  // Gallery thumbnails for the remaining images: image-only embeds sharing the same URL are
+  // rendered by Discord as a clickable grid beneath the cards above.
+  const galleryImages = resolvedImages.slice(1, 1 + MAX_GALLERY_IMAGES);
+  if (galleryImages.length > 0) {
+    const galleryGroupUrl = resolvedImages[0];
+    galleryImages.forEach(imgUrl => {
+      embeds.push(new EmbedBuilder().setURL(galleryGroupUrl).setImage(imgUrl));
+    });
   }
 
-  embed.setTimestamp();
-
-  return embed;
+  return embeds;
 }

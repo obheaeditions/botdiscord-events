@@ -118,7 +118,7 @@ describe('Bot Interactions Integration Tests', () => {
     // 4. Asserts
     expect(updateCalls.length).toBe(1);
     expect(
-      updateCalls[0].embeds[0].data.fields.find(f => f.name === '📊 Inscriptions / Réponses').value
+      updateCalls[0].embeds[1].data.fields.find(f => f.name === '📊 Inscriptions / Réponses').value
     ).toContain('Inscrits : **1**');
 
     // Verify written to DB
@@ -171,7 +171,7 @@ describe('Bot Interactions Integration Tests', () => {
     // 4. Asserts
     expect(updateCalls.length).toBe(1);
     expect(
-      updateCalls[0].embeds[0].data.fields.find(f => f.name === '📊 Inscriptions / Réponses').value
+      updateCalls[0].embeds[1].data.fields.find(f => f.name === '📊 Inscriptions / Réponses').value
     ).toContain('Pas intéressés : **1**');
 
     // Verify written to DB

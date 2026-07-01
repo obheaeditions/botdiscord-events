@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import db from '../database/db.js';
 import client from './index.js';
-import { buildEmbed } from './embedBuilder.js';
+import { buildEmbeds } from './embedBuilder.js';
 
 export async function publishEventToDiscord(eventId) {
   // Fetch event details from db
@@ -37,8 +37,8 @@ export async function publishEventToDiscord(eventId) {
     }
   });
 
-  // 2. Build the Rich Embed
-  const embed = buildEmbed(event, counts);
+  // 2. Build the Rich Embeds (header, details, image gallery)
+  const embeds = buildEmbeds(event, counts);
 
   // 3. Build the Button Action Rows (disabled if blocked)
   const actionRow = new ActionRowBuilder().addComponents(
@@ -110,7 +110,7 @@ export async function publishEventToDiscord(eventId) {
             // Edit existing message
             await msg.edit({
               content: content || null,
-              embeds: [embed],
+              embeds,
               components: [actionRow]
             });
             messageIds[channelId] = msg.id;
@@ -124,7 +124,7 @@ export async function publishEventToDiscord(eventId) {
       if (!msg) {
         msg = await channel.send({
           content: content || undefined,
-          embeds: [embed],
+          embeds,
           components: [actionRow]
         });
 
