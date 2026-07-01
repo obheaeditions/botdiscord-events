@@ -394,8 +394,9 @@ router.post('/events/:id/edit', (req, res) => {
       // 3. Sync Discord messages
       try {
         await publishEventToDiscord(eventId);
+        console.log(`[DISCORD_SYNC_OK] Événement ${eventId} republié avec succès après modification.`);
       } catch (botErr) {
-        console.error(`Erreur de synchronisation Discord lors de la modification de l'événement:`, botErr);
+        console.error(`[DISCORD_SYNC_ERROR] Erreur de synchronisation Discord lors de la modification de l'événement ${eventId}:`, botErr);
       }
 
       res.redirect(`/events/${eventId}`);

@@ -73,7 +73,11 @@ export function buildEmbed(event, counts = {}) {
   const images = JSON.parse(event.images || '[]');
   if (images.length > 0) {
     const imgUrl = images[0].startsWith('http') ? images[0] : `${backendUrl}${images[0]}`;
+    // Logged explicitly because Discord silently drops unreachable image URLs without raising an error
+    console.log(`[EmbedBuilder] Événement ${event.id} : URL image envoyée à Discord -> ${imgUrl}`);
     embed.setImage(imgUrl);
+  } else {
+    console.log(`[EmbedBuilder] Événement ${event.id} : aucune image trouvée en base (champ "images" vide).`);
   }
 
   embed.setTimestamp();
