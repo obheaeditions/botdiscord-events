@@ -150,6 +150,16 @@ export async function publishEventToDiscord(eventId) {
     .run(JSON.stringify(messageIds), eventId);
 }
 
+// Republish an event to Discord, swallowing errors so it never blocks the caller
+// (used after any action that changes registration counts or event data).
+export async function syncEventToDiscord(eventId, actionLabel) {
+  try {
+    await publishEventToDiscord(eventId);
+  } catch (botErr) {
+    console.error(`Erreur de synchronisation Discord (${actionLabel}) pour l'événement ${eventId}:`, botErr);
+  }
+}
+
 export async function deleteEventFromDiscord(eventId) {
   // Fetch event details from DB
   const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);

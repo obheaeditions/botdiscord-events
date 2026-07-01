@@ -31,6 +31,8 @@ Stocke les détails de chaque événement créé depuis l'interface d'administra
 | `is_pinged` | INTEGER | Indicateur d'envoi de mention Discord (0: non, 1: oui) |
 | `is_blocked` | INTEGER | Indicateur de blocage des inscriptions (0: ouvert, 1: bloqué/fermé) |
 | `discord_messages` | TEXT (JSON) | Objet de mapping associant l'ID de chaque canal au message ID publié (ex: `{"123": "456", "789": "101"}`) pour la mise à jour asynchrone multicanale. |
+| `publish_facebook` | INTEGER | Active (`1`) ou non (`0`, défaut) la publication Facebook pour cet événement précis. Voir `doc/facebook_integration.md`. |
+| `facebook_post_id` | TEXT | Identifiant du post photo publié sur la Page Facebook (`NULL` tant que non publié). Voir `doc/facebook_integration.md`. |
 
 ### Table `registrations`
 
@@ -44,6 +46,8 @@ Stocke le statut de réponse en temps réel de chaque utilisateur Discord par ra
 | `username` | TEXT | Nom d'utilisateur Discord pour affichage |
 | `status` | TEXT | Statut de réponse (`inscrit`, `desinscrit`, `interesse`, `pas_interesse`, `en_attente`) |
 | `previous_status` | TEXT | Statut initial sauvegardé de l'utilisateur (`inscrit` ou `interesse`) lorsqu'il est mis en liste d'attente (optionnel) |
+| `source` | TEXT | Origine de l'inscription : `discord` (défaut) ou `facebook` (page d'inscription publique) |
+| `email` | TEXT | Contact optionnel saisi sur la page d'inscription publique (`NULL` sinon) |
 | `updated_at` | TEXT | Horodatage de l'action utilisateur (par défaut `CURRENT_TIMESTAMP`) |
 
 **Contraintes & Index :**

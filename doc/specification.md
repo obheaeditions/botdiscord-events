@@ -24,9 +24,14 @@ Le projet est structuré sous forme de monolithe Node.js léger en ES Modules (E
 │   │   ├── index.js         # Client Discord & écoute d'interactions
 │   │   ├── embedBuilder.js  # Générateur d'Embeds riches pour les salons
 │   │   └── publisher.js     # Gestion de publication et suppression de messages
+│   ├── social/
+│   │   └── facebookPublisher.js # Publication et republication sur une Page Facebook (Meta Graph API)
+│   ├── shared/
+│   │   └── images.js        # Résolution des chemins d'images en URLs publiques absolues
 │   ├── server/
 │   │   ├── index.js         # Initialisation d'Express & Middlewares
 │   │   ├── routes.js        # Routeur et contrôleurs (login, create, details, etc.)
+│   │   ├── publicRoutes.js  # Routes publiques sans authentification (inscription via lien Facebook)
 │   │   └── sessionStore.js  # Gestionnaire de sessions mémoire
 │   │   └── views/           # Vues EJS stylisées (dashboard, create_event, etc.)
 │   └── index.js             # Point d'entrée principal (lance le bot + Express)
@@ -66,6 +71,8 @@ Stocke les détails de chaque événement créé depuis l'interface d'administra
 | `is_pinged` | INTEGER (0/1) | Si 1, mentionne les rôles cibles (ou `@everyone` si public) lors du premier envoi |
 | `is_blocked` | INTEGER (0/1) | Si 1, ferme les inscriptions (les boutons Discord deviennent inactifs) |
 | `discord_messages` | TEXT (JSON) | Mapping des identifiants de messages par canal (ex: `{"channel_id": "message_id"}`) |
+| `publish_facebook` | INTEGER (0/1) | Active la publication Facebook pour cet événement (`0` par défaut — Discord reste toujours actif) |
+| `facebook_post_id` | TEXT | Identifiant du post photo publié sur la Page Facebook (`NULL` tant que non publié) |
 
 ### Table `registrations`
 
@@ -78,6 +85,8 @@ Stocke les statuts d'inscription mis à jour en temps réel par les clics sur le
 | `user_id` | TEXT | Identifiant Discord unique de l'utilisateur |
 | `username` | TEXT | Nom d'utilisateur Discord pour affichage |
 | `status` | TEXT | Statut de réponse (`inscrit`, `desinscrit`, `interesse`, `pas_interesse`) |
+| `source` | TEXT | Origine de l'inscription : `discord` (défaut) ou `facebook` (page d'inscription publique) |
+| `email` | TEXT | Contact optionnel saisi sur la page d'inscription publique (`NULL` sinon) |
 | `updated_at` | DATETIME | Horodatage de l'action utilisateur (par défaut `CURRENT_TIMESTAMP`) |
 
 *Contrainte d'unicité :* `UNIQUE(event_id, user_id)` assure qu'un membre n'a qu'un unique statut par événement.
@@ -122,6 +131,12 @@ Lors de la soumission (`POST /events/create`) :
 - **Gestion des Participants :** Permet d'ajouter manuellement un participant avec son pseudo et son identifiant Discord (User ID Snowflake) directement dans l'interface, ce qui synchronise instantanément les compteurs de l'embed Discord.
 - **Mise en Attente :** Les administrateurs peuvent basculer un inscrit ou un intéressé en statut `"en_attente"`. Ce statut dispose d'un compteur dédié `Orange` affiché dans le backoffice et sur l'embed Discord. L'action fonctionne comme une bascule (toggle) : le choix initial de l'utilisateur (`inscrit` ou `interesse`) est préservé en base de données dans la colonne `previous_status` pour lui permettre d'être réintégré. À chaque changement de statut (mise en attente ou réintégration), le bot envoie automatiquement un message privé (DM) à l'utilisateur pour l'en informer.
 - **Publication sur Fil Discord (Thread) :** Permet de créer un fil de discussion public sous le message de l'événement nommé `"Composition - [Titre Event]"`, et d'y publier automatiquement un message récapitulant les joueurs inscrits et les remplaçants en attente.
+
+---
+
+## 📣 Diffusion Multicanale (Facebook)
+
+En complément de Discord (toujours actif), un événement peut être publié automatiquement sur une Page Facebook (image + texte + lien vers une page d'inscription publique) — **activable événement par événement** via la case « Publier sur Facebook » (colonne `publish_facebook`). Les inscriptions effectuées depuis ce lien sont enregistrées dans la même table `registrations` (colonne `source = 'facebook'`) et synchronisées immédiatement sur l'embed Discord, pour une vision consolidée tous canaux confondus. Détails complets dans [`doc/facebook_integration.md`](./facebook_integration.md).
 
 ---
 

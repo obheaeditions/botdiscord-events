@@ -267,6 +267,16 @@
             <span class="text-xs text-slate-500">Envoie un ping de notification.</span>
           </div>
         </label>
+
+        <% if (facebookConfigured) { %>
+          <label class="flex items-center space-x-3 cursor-pointer text-slate-350 hover:text-white transition">
+            <input type="checkbox" name="publish_facebook" value="1" <%= event.publish_facebook === 1 ? 'checked' : '' %> class="rounded border-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-opacity-25 bg-slate-900 w-4 h-4">
+            <div>
+              <span class="text-sm font-semibold block">📘 Publier sur Facebook</span>
+              <span class="text-xs text-slate-500">Publie (ou republie la légende) sur la Page Facebook configurée.</span>
+            </div>
+          </label>
+        <% } %>
       </div>
 
       <!-- Action Buttons -->

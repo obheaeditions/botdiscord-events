@@ -6,7 +6,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import db from '../database/db.js';
 import client, { validateRolePermissionsForChannels, getGuildChannelsAndRoles } from '../bot/index.js';
-import { publishEventToDiscord, deleteEventFromDiscord, publishCompositionToThreads } from '../bot/publisher.js';
+import { publishEventToDiscord, deleteEventFromDiscord, publishCompositionToThreads, syncEventToDiscord } from '../bot/publisher.js';
+import { publishEventToFacebook } from '../social/facebookPublisher.js';
 import { sessions, SESSION_COOKIE_NAME, parseCookies } from './sessionStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -85,15 +86,6 @@ function deletePublicFile(relativePath) {
   }
 }
 
-// Republish an event to Discord, swallowing errors so it never blocks the HTTP response
-async function syncEventToDiscord(eventId, actionLabel) {
-  try {
-    await publishEventToDiscord(eventId);
-  } catch (botErr) {
-    console.error(`Erreur de synchronisation Discord (${actionLabel}) pour l'événement ${eventId}:`, botErr);
-  }
-}
-
 // GET login page
 router.get('/login', (req, res) => {
   res.render('login', { error: null });
@@ -143,12 +135,13 @@ router.get('/', (req, res) => {
 
 // GET render creation form
 router.get('/events/create', async (req, res) => {
+  const facebookConfigured = Boolean(process.env.FACEBOOK_PAGE_ID && process.env.FACEBOOK_PAGE_ACCESS_TOKEN);
   try {
     const { channels, roles } = await getGuildChannelsAndRoles();
-    res.render('create_event', { channels, roles, error: null });
+    res.render('create_event', { channels, roles, error: null, facebookConfigured });
   } catch (err) {
     console.error('Error fetching channels/roles:', err);
-    res.render('create_event', { channels: [], roles: [], error: 'Impossible de récupérer les salons et rôles Discord.' });
+    res.render('create_event', { channels: [], roles: [], error: 'Impossible de récupérer les salons et rôles Discord.', facebookConfigured });
   }
 });
 
@@ -161,11 +154,14 @@ router.post('/events/create', (req, res) => {
       discordData = await getGuildChannelsAndRoles();
     } catch (_) {}
 
+    const facebookConfigured = Boolean(process.env.FACEBOOK_PAGE_ID && process.env.FACEBOOK_PAGE_ACCESS_TOKEN);
+
     if (err) {
       return res.status(400).render('create_event', {
         channels: discordData.channels,
         roles: discordData.roles,
-        error: err.message
+        error: err.message,
+        facebookConfigured
       });
     }
 
@@ -183,7 +179,8 @@ router.post('/events/create', (req, res) => {
       roles,
       links,
       is_pinned,
-      is_pinged
+      is_pinged,
+      publish_facebook
     } = req.body;
 
     const channelList = normalizeArray(channels);
@@ -195,7 +192,8 @@ router.post('/events/create', (req, res) => {
       return res.status(400).render('create_event', {
         channels: discordData.channels,
         roles: discordData.roles,
-        error: 'Veuillez remplir tous les champs obligatoires.'
+        error: 'Veuillez remplir tous les champs obligatoires.',
+        facebookConfigured
       });
     }
 
@@ -211,8 +209,8 @@ router.post('/events/create', (req, res) => {
       const insertStmt = db.prepare(`
         INSERT INTO events (
           title, type, start_date, end_date, start_time, end_time, duration, desc_short, desc_org,
-          channels, roles, images, documents, links, is_pinned, is_pinged, discord_messages
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          channels, roles, images, documents, links, is_pinned, is_pinged, publish_facebook, discord_messages
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       const result = insertStmt.run(
@@ -232,15 +230,22 @@ router.post('/events/create', (req, res) => {
         JSON.stringify(linkList),
         is_pinned ? 1 : 0,
         is_pinged ? 1 : 0,
+        publish_facebook ? 1 : 0,
         JSON.stringify({}) // Initially empty mapping of messages
       );
 
       const eventId = result.lastInsertRowid;
 
       // 3. Publish event asynchronously (fail-safe and non-blocking for Express response)
+      // Discord publication is always on; Facebook is opt-in per event (publish_facebook checkbox)
       publishEventToDiscord(eventId).catch(pubErr => {
         console.error(`Erreur de publication du bot pour l'événement ${eventId}:`, pubErr);
       });
+      if (publish_facebook) {
+        publishEventToFacebook(eventId).catch(pubErr => {
+          console.error(`Erreur de publication Facebook pour l'événement ${eventId}:`, pubErr);
+        });
+      }
 
       // Redirect to dashboard on success
       res.redirect('/');
@@ -252,7 +257,8 @@ router.post('/events/create', (req, res) => {
       return res.status(400).render('create_event', {
         channels: discordData.channels,
         roles: discordData.roles,
-        error: validationErr.message
+        error: validationErr.message,
+        facebookConfigured
       });
     }
   });
@@ -273,7 +279,8 @@ router.get('/events/:id/edit', async (req, res) => {
       event,
       channels: discordData.channels,
       roles: discordData.roles,
-      error: null
+      error: null,
+      facebookConfigured: Boolean(process.env.FACEBOOK_PAGE_ID && process.env.FACEBOOK_PAGE_ACCESS_TOKEN)
     });
   } catch (err) {
     console.error('Error fetching edit event form:', err);
@@ -293,13 +300,15 @@ router.post('/events/:id/edit', (req, res) => {
     }
 
     const discordData = await getGuildChannelsAndRoles();
+    const facebookConfigured = Boolean(process.env.FACEBOOK_PAGE_ID && process.env.FACEBOOK_PAGE_ACCESS_TOKEN);
 
     if (err) {
       return res.status(400).render('edit_event', {
         event,
         channels: discordData.channels,
         roles: discordData.roles,
-        error: err.message
+        error: err.message,
+        facebookConfigured
       });
     }
 
@@ -317,7 +326,8 @@ router.post('/events/:id/edit', (req, res) => {
       roles,
       links,
       is_pinned,
-      is_pinged
+      is_pinged,
+      publish_facebook
     } = req.body;
 
     const channelList = normalizeArray(channels);
@@ -330,7 +340,8 @@ router.post('/events/:id/edit', (req, res) => {
         event,
         channels: discordData.channels,
         roles: discordData.roles,
-        error: 'Veuillez remplir tous les champs obligatoires.'
+        error: 'Veuillez remplir tous les champs obligatoires.',
+        facebookConfigured
       });
     }
 
@@ -364,7 +375,7 @@ router.post('/events/:id/edit', (req, res) => {
         UPDATE events SET
           title = ?, type = ?, start_date = ?, end_date = ?, start_time = ?, end_time = ?, duration = ?,
           desc_short = ?, desc_org = ?, channels = ?, roles = ?, images = ?, documents = ?, links = ?,
-          is_pinned = ?, is_pinged = ?
+          is_pinned = ?, is_pinged = ?, publish_facebook = ?
         WHERE id = ?
       `).run(
         title,
@@ -383,11 +394,19 @@ router.post('/events/:id/edit', (req, res) => {
         JSON.stringify(linkList),
         is_pinned ? 1 : 0,
         is_pinged ? 1 : 0,
+        publish_facebook ? 1 : 0,
         eventId
       );
 
       // 3. Sync Discord messages
       await syncEventToDiscord(eventId, 'modification événement');
+
+      // 4. If Facebook publication was just enabled and never published before, publish it now
+      if (publish_facebook && event.publish_facebook !== 1 && !event.facebook_post_id) {
+        publishEventToFacebook(eventId).catch(pubErr => {
+          console.error(`Erreur de publication Facebook pour l'événement ${eventId}:`, pubErr);
+        });
+      }
 
       res.redirect(`/events/${eventId}`);
     } catch (err) {
@@ -399,7 +418,8 @@ router.post('/events/:id/edit', (req, res) => {
         event,
         channels: discordData.channels,
         roles: discordData.roles,
-        error: err.message || 'Une erreur est survenue lors de la modification de l’événement.'
+        error: err.message || 'Une erreur est survenue lors de la modification de l’événement.',
+        facebookConfigured
       });
     }
   });
@@ -430,7 +450,12 @@ router.get('/events/:id', (req, res) => {
       }
     });
 
-    res.render('event_details', { event, registrations, counts });
+    res.render('event_details', {
+      event,
+      registrations,
+      counts,
+      facebookConfigured: Boolean(process.env.FACEBOOK_PAGE_ID && process.env.FACEBOOK_PAGE_ACCESS_TOKEN)
+    });
   } catch (err) {
     console.error('Error fetching event details:', err);
     res.status(500).send('Une erreur est survenue lors de la récupération des détails de l’événement.');
@@ -471,6 +496,27 @@ router.post('/events/:id/republish', async (req, res) => {
   } catch (err) {
     console.error('Error republishing event:', err);
     res.status(500).send('Une erreur est survenue lors de la republication de l’événement.');
+  }
+});
+
+// POST republish / update caption on Facebook
+router.post('/events/:id/republish-facebook', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const event = db.prepare('SELECT publish_facebook FROM events WHERE id = ?').get(eventId);
+    if (!event) {
+      return res.status(404).send('Événement non trouvé.');
+    }
+    if (event.publish_facebook !== 1) {
+      return res.status(400).send("La publication Facebook n'est pas activée pour cet événement.");
+    }
+
+    await publishEventToFacebook(eventId);
+
+    res.redirect(`/events/${eventId}`);
+  } catch (err) {
+    console.error('Error republishing event on Facebook:', err);
+    res.status(500).send('Une erreur est survenue lors de la republication sur Facebook.');
   }
 });
 

@@ -1,5 +1,6 @@
 import { EmbedBuilder } from 'discord.js';
 import dotenv from 'dotenv';
+import { resolveImageUrls } from '../shared/images.js';
 
 dotenv.config();
 
@@ -36,7 +37,7 @@ export function buildEmbeds(event, counts = {}) {
   }
 
   const images = JSON.parse(event.images || '[]');
-  const resolvedImages = images.map(img => img.startsWith('http') ? img : `${backendUrl}${img}`);
+  const resolvedImages = resolveImageUrls(images, backendUrl);
 
   // Header card: title + short pitch + the main image, kept free of fields so the image sits near the top
   const headerEmbed = new EmbedBuilder()

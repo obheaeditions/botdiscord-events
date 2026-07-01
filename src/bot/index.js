@@ -118,6 +118,25 @@ export async function getGuildChannelsAndRoles() {
   }
 }
 
+// Resolve a Discord username (unique handle, e.g. from the public registration page) to an
+// actual guild member. Returns null if the bot is offline, the guild is unavailable, or no
+// exact (case-insensitive) match is found.
+export async function resolveGuildMemberByUsername(username) {
+  if (!client.readyAt) return null;
+
+  try {
+    const guildId = process.env.DISCORD_GUILD_ID;
+    const guild = guildId ? await client.guilds.fetch(guildId) : client.guilds.cache.first();
+    if (!guild) return null;
+
+    const results = await guild.members.search({ query: username, limit: 5 });
+    return results.find(m => m.user.username.toLowerCase() === username.toLowerCase()) || null;
+  } catch (err) {
+    console.error(`Erreur lors de la résolution du pseudo Discord "${username}":`, err.message);
+    return null;
+  }
+}
+
 // Listen to button click interactions for event registrations
 client.on('interactionCreate', async interaction => {
   if (!interaction.isButton()) return;

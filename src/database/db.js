@@ -63,4 +63,31 @@ try {
   // Column already exists, ignore error
 }
 
+// Add source/email columns to track registrations coming from the public Facebook page
+try {
+  db.exec("ALTER TABLE registrations ADD COLUMN source TEXT DEFAULT 'discord'");
+} catch (err) {
+  // Column already exists, ignore error
+}
+
+try {
+  db.exec('ALTER TABLE registrations ADD COLUMN email TEXT');
+} catch (err) {
+  // Column already exists, ignore error
+}
+
+// Add facebook_post_id column to track the published Facebook photo post per event
+try {
+  db.exec('ALTER TABLE events ADD COLUMN facebook_post_id TEXT');
+} catch (err) {
+  // Column already exists, ignore error
+}
+
+// Add publish_facebook column: per-event opt-in for Facebook publication (off by default, Discord stays mandatory)
+try {
+  db.exec('ALTER TABLE events ADD COLUMN publish_facebook INTEGER DEFAULT 0');
+} catch (err) {
+  // Column already exists, ignore error
+}
+
 export default db;

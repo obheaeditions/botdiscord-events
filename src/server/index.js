@@ -42,6 +42,10 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, '../../public/uploads')));
 
+// Public event registration page (no authentication required, linked from the Facebook post)
+import publicRouter from './publicRoutes.js';
+app.use('/register', publicRouter);
+
 // Configure Basic Authentication
 // Configure Authentication with Cookie Session and Basic Auth Fallback (BFF API/testing)
 const adminUser = process.env.ADMIN_USER || 'admin';
