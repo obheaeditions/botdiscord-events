@@ -3,7 +3,7 @@ import basicAuth from 'express-basic-auth';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { sessions, SESSION_COOKIE_NAME } from './sessionStore.js';
+import { sessions, SESSION_COOKIE_NAME, parseCookies } from './sessionStore.js';
 
 dotenv.config();
 
@@ -46,17 +46,6 @@ app.use('/uploads', (req, res, next) => {
 // Configure Authentication with Cookie Session and Basic Auth Fallback (BFF API/testing)
 const adminUser = process.env.ADMIN_USER || 'admin';
 const adminPassword = process.env.ADMIN_PASSWORD || 'password';
-
-// Helper to parse cookies from headers
-function parseCookies(cookieHeader) {
-  const list = {};
-  if (!cookieHeader) return list;
-  cookieHeader.split(';').forEach(cookie => {
-    const parts = cookie.split('=');
-    list[parts.shift().trim()] = decodeURI(parts.join('='));
-  });
-  return list;
-}
 
 // Basic Auth checker (used as a fallback for API/testing compatibility)
 const checkBasicAuth = basicAuth({

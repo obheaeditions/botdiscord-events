@@ -45,11 +45,7 @@ export function buildEmbeds(event, counts = {}) {
     .setColor(color);
 
   if (resolvedImages.length > 0) {
-    // Logged explicitly because Discord silently drops unreachable image URLs without raising an error
-    console.log(`[EmbedBuilder] Événement ${event.id} : URL image principale -> ${resolvedImages[0]}`);
     headerEmbed.setImage(resolvedImages[0]);
-  } else {
-    console.log(`[EmbedBuilder] Événement ${event.id} : aucune image trouvée en base (champ "images" vide).`);
   }
 
   // Details card: all informational fields

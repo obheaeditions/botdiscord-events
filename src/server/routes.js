@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import db from '../database/db.js';
 import client, { validateRolePermissionsForChannels, getGuildChannelsAndRoles } from '../bot/index.js';
 import { publishEventToDiscord, deleteEventFromDiscord, publishCompositionToThreads } from '../bot/publisher.js';
-import { sessions, SESSION_COOKIE_NAME } from './sessionStore.js';
+import { sessions, SESSION_COOKIE_NAME, parseCookies } from './sessionStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,6 +57,43 @@ const upload = multer({
   { name: 'documents', maxCount: 10 }
 ]);
 
+// Normalize checkbox/multi-select outputs (which can be string, array or undefined)
+function normalizeArray(val) {
+  if (!val) return [];
+  return Array.isArray(val) ? val : [val];
+}
+
+// Extract uploaded file paths for a given multer field; safe even if req.files is undefined
+// (e.g. non-multipart requests, which multer leaves untouched)
+function filesToPaths(files, field) {
+  return (files?.[field] || []).map(file => `/uploads/${file.filename}`);
+}
+
+// Remove uploaded files from disk (used to clean up orphans on validation/DB failure)
+function removeUploadedFiles(files) {
+  const allFiles = [...(files?.images || []), ...(files?.documents || [])];
+  allFiles.forEach(file => {
+    try { fs.unlinkSync(file.path); } catch (_) {}
+  });
+}
+
+// Physically delete a previously uploaded public file (e.g. image/document removed during edit)
+function deletePublicFile(relativePath) {
+  const filePath = path.join(__dirname, '../../public', relativePath);
+  if (fs.existsSync(filePath)) {
+    try { fs.unlinkSync(filePath); } catch (_) {}
+  }
+}
+
+// Republish an event to Discord, swallowing errors so it never blocks the HTTP response
+async function syncEventToDiscord(eventId, actionLabel) {
+  try {
+    await publishEventToDiscord(eventId);
+  } catch (botErr) {
+    console.error(`Erreur de synchronisation Discord (${actionLabel}) pour l'événement ${eventId}:`, botErr);
+  }
+}
+
 // GET login page
 router.get('/login', (req, res) => {
   res.render('login', { error: null });
@@ -83,15 +120,7 @@ router.post('/login', (req, res) => {
 
 // POST logout handler
 router.post('/logout', (req, res) => {
-  const cookieHeader = req.headers.cookie || '';
-  const cookies = {};
-  cookieHeader.split(';').forEach(c => {
-    const parts = c.split('=');
-    if (parts.length === 2) {
-      cookies[parts[0].trim()] = parts[1].trim();
-    }
-  });
-
+  const cookies = parseCookies(req.headers.cookie);
   const token = cookies[SESSION_COOKIE_NAME];
   if (token) {
     sessions.delete(token);
@@ -157,12 +186,6 @@ router.post('/events/create', (req, res) => {
       is_pinged
     } = req.body;
 
-    // Helper to normalize checkbox outputs (which can be string, array or undefined)
-    const normalizeArray = (val) => {
-      if (!val) return [];
-      return Array.isArray(val) ? val : [val];
-    };
-
     const channelList = normalizeArray(channels);
     const roleList = normalizeArray(roles);
     const linkList = links ? links.split('\n').map(s => s.trim()).filter(Boolean) : [];
@@ -177,8 +200,8 @@ router.post('/events/create', (req, res) => {
     }
 
     // Capture uploaded files from multer
-    const imageList = req.files['images'] ? req.files['images'].map(file => `/uploads/${file.filename}`) : [];
-    const documentList = req.files['documents'] ? req.files['documents'].map(file => `/uploads/${file.filename}`) : [];
+    const imageList = filesToPaths(req.files, 'images');
+    const documentList = filesToPaths(req.files, 'documents');
 
     try {
       // 1. Validation de Cohérence Rôle / Canal (Client Discord check)
@@ -214,10 +237,7 @@ router.post('/events/create', (req, res) => {
 
       const eventId = result.lastInsertRowid;
 
-      // 3. Trigger publishing logic on Discord
-      const { publishEventToDiscord } = await import('../bot/publisher.js');
-      
-      // Publish event asynchronously (fail-safe and non-blocking for Express response)
+      // 3. Publish event asynchronously (fail-safe and non-blocking for Express response)
       publishEventToDiscord(eventId).catch(pubErr => {
         console.error(`Erreur de publication du bot pour l'événement ${eventId}:`, pubErr);
       });
@@ -227,17 +247,7 @@ router.post('/events/create', (req, res) => {
 
     } catch (validationErr) {
       // If validation or insertion fails, delete uploaded files to prevent orphaned files on disk
-      const allUploadedFiles = [
-        ...(req.files['images'] || []),
-        ...(req.files['documents'] || [])
-      ];
-      allUploadedFiles.forEach(file => {
-        try {
-          fs.unlinkSync(file.path);
-        } catch (unlinkErr) {
-          console.error('Failed to clean up uploaded file:', file.path, unlinkErr);
-        }
-      });
+      removeUploadedFiles(req.files);
 
       return res.status(400).render('create_event', {
         channels: discordData.channels,
@@ -310,11 +320,6 @@ router.post('/events/:id/edit', (req, res) => {
       is_pinged
     } = req.body;
 
-    const normalizeArray = (val) => {
-      if (!val) return [];
-      return Array.isArray(val) ? val : [val];
-    };
-
     const channelList = normalizeArray(channels);
     const roleList = normalizeArray(roles);
     const linkList = links ? links.split('\n').map(s => s.trim()).filter(Boolean) : [];
@@ -337,25 +342,15 @@ router.post('/events/:id/edit', (req, res) => {
     const deleteDocs = normalizeArray(req.body.delete_documents);
 
     // Physically delete files from public folder
-    deleteImages.forEach(img => {
-      const filePath = path.join(__dirname, '../../public', img);
-      if (fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
-      }
-    });
-    deleteDocs.forEach(doc => {
-      const filePath = path.join(__dirname, '../../public', doc);
-      if (fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
-      }
-    });
+    deleteImages.forEach(deletePublicFile);
+    deleteDocs.forEach(deletePublicFile);
 
     currentImages = currentImages.filter(img => !deleteImages.includes(img));
     currentDocs = currentDocs.filter(doc => !deleteDocs.includes(doc));
 
     // Append new files
-    const newImages = req.files['images'] ? req.files['images'].map(file => `/uploads/${file.filename}`) : [];
-    const newDocs = req.files['documents'] ? req.files['documents'].map(file => `/uploads/${file.filename}`) : [];
+    const newImages = filesToPaths(req.files, 'images');
+    const newDocs = filesToPaths(req.files, 'documents');
 
     const finalImages = [...currentImages, ...newImages];
     const finalDocs = [...currentDocs, ...newDocs];
@@ -392,26 +387,13 @@ router.post('/events/:id/edit', (req, res) => {
       );
 
       // 3. Sync Discord messages
-      try {
-        await publishEventToDiscord(eventId);
-        console.log(`[DISCORD_SYNC_OK] Événement ${eventId} republié avec succès après modification.`);
-      } catch (botErr) {
-        console.error(`[DISCORD_SYNC_ERROR] Erreur de synchronisation Discord lors de la modification de l'événement ${eventId}:`, botErr);
-      }
+      await syncEventToDiscord(eventId, 'modification événement');
 
       res.redirect(`/events/${eventId}`);
     } catch (err) {
       console.error('Error updating event:', err);
       // Delete newly uploaded files to prevent orphaned files on disk if the update failed
-      const allUploadedFiles = [
-        ...(req.files['images'] || []),
-        ...(req.files['documents'] || [])
-      ];
-      allUploadedFiles.forEach(file => {
-        if (fs.existsSync(file.path)) {
-          try { fs.unlinkSync(file.path); } catch (_) {}
-        }
-      });
+      removeUploadedFiles(req.files);
 
       res.status(500).render('edit_event', {
         event,
@@ -468,11 +450,7 @@ router.post('/events/:id/toggle-block', async (req, res) => {
     db.prepare('UPDATE events SET is_blocked = ? WHERE id = ?').run(newBlockedState, eventId);
 
     // Sync state to Discord embeds
-    try {
-      await publishEventToDiscord(eventId);
-    } catch (botErr) {
-      console.error(`Erreur lors de la synchronisation de l'état bloqué sur Discord:`, botErr);
-    }
+    await syncEventToDiscord(eventId, 'état bloqué');
 
     res.redirect(`/events/${eventId}`);
   } catch (err) {
@@ -532,11 +510,7 @@ router.post('/events/:id/edit-descriptions', async (req, res) => {
       .run(desc_short.trim(), desc_org.trim(), eventId);
 
     // Sync updated descriptions to Discord embeds
-    try {
-      await publishEventToDiscord(eventId);
-    } catch (botErr) {
-      console.error(`Erreur de synchronisation Discord lors de la modification des descriptions:`, botErr);
-    }
+    await syncEventToDiscord(eventId, 'modification descriptions');
 
     res.redirect(`/events/${eventId}`);
   } catch (err) {
@@ -562,11 +536,7 @@ router.post('/events/:id/registrations/add', async (req, res) => {
     `).run(eventId, user_id.trim(), username.trim(), regStatus);
 
     // Sync embeds on Discord
-    try {
-      await publishEventToDiscord(eventId);
-    } catch (botErr) {
-      console.error(`Erreur de synchronisation Discord lors de l'ajout manuel:`, botErr);
-    }
+    await syncEventToDiscord(eventId, 'ajout manuel');
 
     res.redirect(`/events/${eventId}`);
   } catch (err) {
@@ -613,11 +583,7 @@ router.post('/events/:id/registrations/:userId/waitlist', async (req, res) => {
       .run(newStatus, newPreviousStatus, eventId, userId);
 
     // Sync embeds on Discord
-    try {
-      await publishEventToDiscord(eventId);
-    } catch (botErr) {
-      console.error(`Erreur de synchronisation Discord lors de la mise en attente:`, botErr);
-    }
+    await syncEventToDiscord(eventId, 'mise en attente');
 
     // Send private message (DM) to the user on Discord
     if (client.readyAt && dmText) {
