@@ -125,7 +125,9 @@ client.on('interactionCreate', async interaction => {
   const { customId, user, member } = interaction;
   if (!customId.startsWith('event_')) return;
 
-  const [_, eventId, action] = customId.split('_');
+  const parts = customId.split('_');
+  const eventId = parts[1];
+  const action = parts.slice(2).join('_');
 
   try {
     const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
@@ -181,6 +183,16 @@ client.on('interactionCreate', async interaction => {
 
     // 4. Update the current Discord message
     await interaction.update({ embeds: [updatedEmbed] });
+
+    // 4b. Send private DM to user if they registered or showed interest
+    if ((action === 'inscrit' || action === 'interesse') && typeof user.send === 'function') {
+      try {
+        const statusLabel = action === 'inscrit' ? "inscrit(e)" : "intéressé(e)";
+        await user.send(`Bonjour ! Vous avez bien été ${statusLabel} à l'événement **${event.title}**.`);
+      } catch (dmErr) {
+        console.warn(`Impossible d'envoyer un message privé à l'utilisateur ${user.id}:`, dmErr.message);
+      }
+    }
 
     // 5. Update other target channels message mapping in the background (asynchronous synchronization)
     const messageMapping = JSON.parse(event.discord_messages || '{}');
